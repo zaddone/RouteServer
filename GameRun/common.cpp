@@ -129,6 +129,18 @@ int CALLBACK lpEnumFunc(HWND hwnd, LPARAM lParam){
 		return 1;
 	//}
 }
+BOOL _CheckWindows(LPVOID lpParamter,HANDLE hProcess,TCHAR * ProName, DWORD h){
+	TCHAR * pro = (TCHAR *)lpParamter;
+	size_t le = wcslen(ProName);
+	_wcslwr_s(ProName,le+1);
+	TCHAR *N = NULL ;
+	N = wcsstr(pro,ProName);
+	if (N != NULL){		
+		//EnumWindows(lpEnumFunc,h);
+		return TRUE;
+	}
+	return FALSE;
+}
 BOOL _ShowWindows(LPVOID lpParamter,HANDLE hProcess,TCHAR * ProName, DWORD h){
 	TCHAR * pro = (TCHAR *)lpParamter;
 	size_t le = wcslen(ProName);

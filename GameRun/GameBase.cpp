@@ -66,7 +66,11 @@ GameBase::~GameBase(){
 	if (gameName != NULL) delete [] gameName;
 	if (Tag != NULL) delete [] Tag;
 }
-
+bool GameBase::CheckWindows(){
+	
+	if(FindEnumProcess(_CheckWindows,this->gameName))return true;
+	return false;
+}
 bool GameBase::ShowWindows(){
 	
 	if(FindEnumProcess(_ShowWindows,this->gameName))return true;

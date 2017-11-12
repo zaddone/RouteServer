@@ -5,14 +5,14 @@
 #include "templeImg.h"
 class  Coordinate{
 public:
-	Coordinate(int _x,int _y,int _v );
+	Coordinate(TempleImg *t,CvRect r,int o = 0 );
 	~Coordinate();
-	int x;
-	int y;
-	int v;
+
 	TempleImg *te;
 	bool MouseClick(const int _v,const int n=1);
 	CvRect rect;
+	int order;
 }; 
 bool compCoordinate(const Coordinate &a,const Coordinate &b);
+bool compCoordinateOrder(const Coordinate &a,const Coordinate &b);
 #endif

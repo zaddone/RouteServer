@@ -16,6 +16,7 @@ public:
 	void SetBaseIni(const TCHAR * Base);
 	void SetCallBack(CallBackSendData _f , LPVOID lp);
 	bool ShowWindows();
+	bool CheckWindows();
 	virtual void CloseWindows(){};
 	virtual bool  go(int roomID){return true;};
 	virtual void reloadWindows(){};

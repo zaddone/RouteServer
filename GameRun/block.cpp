@@ -57,7 +57,7 @@ Block::Block(char *RectData,Block *_Par,int _id,char * GName){
 	}
 	char defPath[1024]={0};
 	GetTemplePath(defPath);
-	printf("%s\r\n",defPath);
+	//printf("%s\r\n",defPath);
 	this->GetChildBlock();
 }
 Block::~Block(){
@@ -216,10 +216,7 @@ int Block::FindNL(IplImage * src ){
 	cvSetImageROI(src, this->rect);
 	IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
 	cvCopy(src,dst);
-	cvResetImageROI(src);
-	
-
-	
+	cvResetImageROI(src);	
 	int n = 0;
 	NumberList * _NL = GetNumblerListClass();
 	if (_NL != NULL)n = _NL->Know(dst);		
@@ -245,6 +242,90 @@ Block * Block::GetChildOne(IplImage * src,int id){
 	return this->Child[id];
 }
 int Block::FindOne(IplImage * src){
+	CvPoint loc;	
+	int n = -1;	
+	 
+	for (vector<Coordinate>::iterator it = Coord.begin(); it != Coord.end(); it ++){
+		if (inSameOne(src,(*it).rect, (*it).te->img,&loc)){
+			(*it).order = Coord.front().order+1;
+			n = (*it).te->Tag;
+			sort(Coord.begin(),Coord.end(),compCoordinateOrder);
+			//printf("0 out\r\n");
+			return n;
+		}
+	}
+		
+ 
+	vector <TempleImg*> _TempleList = GetTempleList();
+
+	if (!_TempleList.empty()){
+		if ( Coord.size() < _TempleList.size() ){
+			for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
+				if (inSameOne(src,rect, (*it)->img,&loc)){
+					Coordinate coo((*it) , cvRect(loc.x,loc.y,(*it)->img->width,(*it)->img->height));	
+					//coo.rect = cvRect(loc.x,loc.y,(*it)->img->width,(*it)->img->height);
+					//coo.te = (*it);				
+					this->Coord.push_back(coo);
+					coo.order = Coord.front().order+1;
+					sort(Coord.begin(),Coord.end(),compCoordinateOrder);
+					n = (*it)->Tag;
+					//printf("1 out\r\n");
+					return n;
+				}
+			}
+		}
+		double max = 0,val;
+		CvPoint  l;
+		
+		TempleImg* Temp =NULL;
+		cvSetImageROI(src, rect);
+		IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
+		cvCopy(src,dst);
+		cvResetImageROI(src); 
+		for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
+			val = inSameOneT(dst, (*it)->img,&l);
+			if (val < 0.8) {
+				continue;
+			}
+			if (val>max){
+				Temp = (*it);
+				max = val;
+				loc.x = rect.x+l.x;
+				loc.y = rect.y+l.y;					 
+			}
+		}
+		cvReleaseImage(&dst);
+		if (Temp != NULL){
+			n = Temp->Tag;
+			CvRect r= cvRect(loc.x, loc.y,Temp->img->width,Temp->img->height);
+			Coordinate coo(new TempleImg(src, r,n ),r);
+			//coo.rect = cvRect( loc.x, loc.y,Temp->img->width,Temp->img->height);
+
+			//coo.te = new TempleImg(src, coo.rect,n );
+			char defPath[1024]={0};
+			GetTemplePath(defPath);
+			coo.te->SaveTemple(defPath);
+			_TempleList.push_back(coo.te);
+			this->Coord.push_back(coo);
+			coo.order = Coord.front().order+1;
+			sort(Coord.begin(),Coord.end(),compCoordinateOrder);
+			//printf("2 out\r\n");
+			return n;
+		}
+
+	}	
+	if (!this->Child.empty()){
+		for (vector<Block*>::iterator it = Child.begin(); it != Child.end(); it ++) {
+			n = (*it)->FindOne(src);
+			//(*it)->ShowRectImg(src);
+			if (n!= -1) return n;
+		}
+	}
+
+	return n;
+}
+
+int Block::FindOneS(IplImage * src){
 	CvPoint loc;
 	//cvSetImageROI(src, rect);
 	//IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
@@ -257,13 +338,11 @@ int Block::FindOne(IplImage * src){
 		//cvSetImageROI(src, rect);
 		for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
 			if (inSameOne(src,rect, (*it)->img,&loc)){
-				(*it)->order++;
-				Coordinate coo(loc.x +( (*it)->img->width/2)  ,loc.y +((*it)->img->height/2) ,(*it)->Tag );	
-				coo.rect = cvRect(loc.x,loc.y,(*it)->img->width,(*it)->img->height);
-				coo.te = (*it);
+				//(*it)->order++;
+				Coordinate coo((*it),cvRect(loc.x,loc.y,(*it)->img->width,(*it)->img->height));	
 				this->Coord.push_back(coo);
 				n = (*it)->Tag;
-				sort(_TempleList.begin(),_TempleList.end(),compTempleImgOrder);	
+				//sort(_TempleList.begin(),_TempleList.end(),compTempleImgOrder);	
 				//printf("order %d %d\r\n",_TempleList.front()->order,_TempleList.size());
 				//printf("loc %d %d\r\n",loc.x,loc.y);
 				if (loc.x !=this->rect.x || loc.y != this->rect.y){
@@ -280,7 +359,7 @@ int Block::FindOne(IplImage * src){
 		if (n == -1 && _TempleList.front()->order == 0){
 			double max = 0,val;
 			CvPoint  l;
-			Coordinate coo(0,0,0 );
+			
 			//coo.rect = rect;	
 			TempleImg* Temp =NULL;
 
@@ -304,11 +383,9 @@ int Block::FindOne(IplImage * src){
 			cvReleaseImage(&dst);
 			if (Temp != NULL){
 				n = Temp->Tag;
-				coo.x = rect.x+loc.x +( Temp->img->width/2);
-				coo.y = rect.y+loc.y +(Temp->img->height/2);
-				coo.v = n;
-				coo.te = Temp;
-				coo.rect = cvRect(rect.x+loc.x,rect.y+loc.y,Temp->img->width,Temp->img->height);
+				Coordinate coo(Temp,cvRect(rect.x+loc.x,rect.y+loc.y,Temp->img->width,Temp->img->height));
+				//coo.te = Temp;
+				//coo.rect = cvRect(rect.x+loc.x,rect.y+loc.y,Temp->img->width,Temp->img->height);
 				//coo.rect = cvRect(loc.x,loc.y,(*it)->img->width,(*it)->img->height);
 				if (loc.x !=0 || loc.y != 0){
 					this->rect.height = coo.rect.height;
@@ -374,7 +451,7 @@ int Block::FindArr(IplImage * src,bool isUpdate){
 			}
 			bl->Fill(src);
 			bl->TempleList.push_back(bl->Coord.back().te);
-			this->Coord.push_back(bl->Coord.back());
+			this->Coord.push_back(bl->Coord.front());
 			count++;
 		}
 		sort(this->Child.begin(),this->Child.end(),compBlockX);
@@ -384,6 +461,7 @@ int Block::FindArr(IplImage * src,bool isUpdate){
 	return count;
 }
 void Block::Fill(IplImage * src){
+	rect = this->Coord.front().rect;
 	int i,j;
 	int height = rect.y + rect.height;
 	int width = rect.x + rect.width;
@@ -398,9 +476,7 @@ void Block::Fill(IplImage * src){
 }
 bool Block::ClickCoordinate(int _v,int num){
 	if (_v == -1){
-		int x = this->rect.x+(rect.width/2);
-		int y = this->rect.y+(rect.height/2);
-		Coordinate coor(x,y,_v);
+		Coordinate coor(NULL,this->rect);
 		return coor.MouseClick(_v,num);
 	}		
 	for (vector<Coordinate>::iterator it = Coord.begin(); it != Coord.end(); it ++) {
@@ -411,45 +487,7 @@ bool Block::ClickCoordinate(int _v,int num){
 	}
 	return false;
 }
-int Block::FindOneT(IplImage * src){
-	//CvPoint loc;
-	cvSetImageROI(src, rect);
-	IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
-	cvCopy(src,dst);
-	cvResetImageROI(src); 
-	this->ClearCoord();
-	int n = -1;
 
-	double max = 0,val;
-	CvPoint  l;
-	Coordinate coo(0,0,0 );
-	//coo.rect = rect;		
-	vector <TempleImg*> _TempleList = GetTempleList();
-	for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
-		val = inSameOneT(dst, (*it)->img,&l);
-		if (val < 0.8) {
-			continue;
-		}
-		if (val>max){
-			n = (*it)->Tag;
-			max = val;
-			//loc  = l;
-			coo.x = rect.x+l.x +( (*it)->img->width/2);
-			coo.y = rect.y+l.y +((*it)->img->height/2);
-			coo.v = n;
-			coo.te = (*it);
-			coo.rect = cvRect(rect.x+l.x,rect.y+l.y,(*it)->img->width,(*it)->img->height);
-			//loc->y = l.y;
-		}
-	}
-	if (n != -1){
-		//Coordinate coo(loc.x +( (*it)->img->width/2)  ,loc.y +((*it)->img->height/2) ,(*it)->Tag);	
-		this->Coord.push_back(coo);
-	}
-	cvReleaseImage(&dst);
-	//cvResetImageROI(src); 
-	return n;
-}
 bool compBlockX(Block *a,Block *b){
 	return a->rect.x < b->rect.x;
 }
@@ -457,8 +495,8 @@ bool compBlockY(Block *a,Block *b){
 	return a->rect.y < b->rect.y;
 }
 bool compImg(IplImage * a,IplImage * b,CvRect rect){
-	int height     = a->height;
-	int width      = a->width;
+	int height     =rect.height;
+	int width      =rect.width;
 	if ( width != b->width) return false;
 	if ( height != b->height) return false;
 	int step       = a->widthStep;
@@ -468,9 +506,9 @@ bool compImg(IplImage * a,IplImage * b,CvRect rect){
 	uchar * ndata    = (uchar *) b->imageData;
 	int nchannels   = b->nChannels;
 	int i,j;	
-	for(i=0; i< height  ; i+=1){
-		for(j=0; j< width ; j+=1){
-			if (data[i *step+j*channels+0] != ndata[i*nstep+j*nchannels+0]){
+	for(i=0; i< height  ; i+=nchannels){
+		for(j=0; j< width ; j+=nchannels){
+			if (data[(i+rect.y) *step+(j+rect.x)*channels+0] != ndata[i*nstep+j*nchannels+0]){
 				return false;
 			}
 		}
@@ -481,11 +519,13 @@ bool inSameOne(IplImage *img,CvRect rect ,IplImage * num,CvPoint *loc){
 
 	int h = rect.height - num->height;
 	int w = rect.width - num->width;
- 
+	if (h == 0 && w == 0) {
+		return compImg(img,num,rect);
+	}
 	if(h<0 || w < 0){
 		return false;
 	}		
- 
+	//printf("%d %d\r\n",h,w);
 	int height     =rect.y+ rect.height;
 	int width      =rect.x+ rect.width;
 	int step       = img->widthStep;
@@ -500,13 +540,13 @@ bool inSameOne(IplImage *img,CvRect rect ,IplImage * num,CvPoint *loc){
 	int i,j,ii,jj;
 	bool isS = false;
 	//int sum = 0,max=0;
-	for(j=rect.x; j<(width-nwidth ); j+=1){
-		for(i=rect.y; i<(height-nheight) ; i+=1){
+	for(j=rect.x; j< (width-nwidth ); j+=1){
+		for(i=rect.y; i< (height-nheight) ; i+=1){
 			isS = true;
 			//sum = 0;
-			for(jj=0; jj<nwidth; jj+=4){
-				for(ii=0; ii<nheight ; ii+=4){
-					if (data[(i+ii)*step+(j+jj)*channels+0] != ndata[ii*nstep+jj*nchannels+0]){
+			for(jj=0; jj<nwidth; jj+=channels){
+				for(ii=0; ii<nheight ; ii+=channels){
+					if (data[(i+ii)*step+(j+jj)*channels ] != ndata[ii*nstep+jj*nchannels ]){
 						isS = false;
 						break;
 					//}else{

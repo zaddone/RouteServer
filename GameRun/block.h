@@ -15,8 +15,9 @@ public:
 	Block(char *RectData,Block *_Par ,int _id,char * GName );
 	~Block();
 
+	int FindOneS(IplImage * src);
 	int FindOne(IplImage * src);
-	int FindOneT(IplImage * src);
+	//int FindOneT(IplImage * src);
 	int FindNL(IplImage * src );
 	int FindArr(IplImage * src,bool isUpdate = false);
 	Block * GetChildOne(IplImage * src,int id=0);
@@ -25,7 +26,8 @@ public:
 	vector <Coordinate>  Coord;
 	CvRect  rect;
 	void ShowRectImg(IplImage * src);
-	
+	vector <Block *> Child;	
+
 private:
 	void LoadToTempleList(char * Filepath);
 	//void SaveTemple(IplImage * src);
@@ -35,7 +37,8 @@ private:
 	void ClearCoord();
 	void LoadTempleForDir(char * Filepath);
 	void Fill(IplImage * src);
-	vector <Block *> Child;	
+
+	
 	vector <TempleImg*> TempleList ;	
 	vector <TempleImg*>  GetTempleList();
 	int ID;

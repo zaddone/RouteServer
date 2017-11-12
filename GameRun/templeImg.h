@@ -5,8 +5,8 @@
 
 class TempleImg {
 public:
-	TempleImg(IplImage * img  ,const int tag = 0 ,int _order = 0 );
-	
+	TempleImg(IplImage * src  ,const int tag = 0 ,int _order = 0 );
+	TempleImg(IplImage * src ,CvRect r,const int tag = 0);
 	~TempleImg();
 	IplImage  * img;
 	void SaveTemple(char  *filePath);

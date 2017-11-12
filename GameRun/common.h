@@ -14,6 +14,7 @@ BOOL FindEnumProcess(HandleFUNC F,LPVOID lpParamter );
 void FindEnumProcessAll(HandleFUNC F,LPVOID lpParamter );
 BOOL KillWindowsExe(LPVOID lpParamter,HANDLE hProcess,TCHAR * ProName, DWORD h);
 BOOL _ShowWindows(LPVOID lpParamter,HANDLE hProcess,TCHAR * ProName, DWORD h);
+BOOL _CheckWindows(LPVOID lpParamter,HANDLE hProcess,TCHAR * ProName, DWORD h);
 void reloadSystem(LPVOID handle,char * data,bool * wait);
 
 #endif

@@ -29,7 +29,7 @@ bool Scmj::inRoom(int roomID){
 
 	int n = this->BlockList[12]->FindArr(this->ScreenImg);
 	if (n!=4){
-		printf("find not Room \r\n");
+		printf("find not Room %d\r\n",n);
 		return false;
 	}
 	Block * bl = this->BlockList[12]->GetChildOne(ScreenImg,roomID);
@@ -57,7 +57,7 @@ bool Scmj::inGame(){
 				}
 			}
 			//if (isBreak) break;			
-		}else if (!this->Par->ShowWindows())return false;
+		}else if (!this->Par->CheckWindows())return false;
 	}
 	return false;
 }
@@ -68,8 +68,21 @@ bool Scmj::go(int roomID){
 	if (! inRoom(roomID)) return false;
 	if (!inGame()) return false;
 	}
-
+	/**
 	//in game
+	int n;
+	do{
+		hBitmap2Ipls(Screen(),this->ScreenImg);
+		n = this->BlockList[4]->FindOne(ScreenImg);
+		if (n != -1){
+			char data[10]={0};
+			sprintf(data,"%d\0",n);
+			this->Func(this->lpParamter,data,NULL,NULL);
+		}
+		printf("n-> %d\r\n",n);
+		Sleep(this->heartTime);
+	}while(true);
+	**/
 	return game();
 }
 bool Scmj::game(){
@@ -79,6 +92,9 @@ bool Scmj::game(){
 		hBitmap2Ipls(Screen(),this->ScreenImg);
 		//n = this->BlockList[4]->FindArr(ScreenImg);
 		n = this->BlockList[4]->FindOne(ScreenImg);
+		//for (vector<Block *>::iterator it = this->BlockList[4]->Child.begin(); it != this->BlockList[4]->Child.end(); it ++) {
+		//}
+		//for (this->BlockList[4]->Child.back())
 		if (n != -1){
 			char data[10]={0};
 			sprintf(data,"%d\0",n);
