@@ -91,7 +91,6 @@
     <ClInclude Include="Coordinate.h" />
     <ClInclude Include="GameBase.h" />
     <ClInclude Include="lobby.h" />
-    <ClInclude Include="monitor.h" />
     <ClInclude Include="mouse.h" />
     <ClInclude Include="readNumber.h" />
     <ClInclude Include="scmj.h" />
@@ -108,7 +107,6 @@
     <ClCompile Include="GameBase.cpp" />
     <ClCompile Include="GameRun.cpp" />
     <ClCompile Include="lobby.cpp" />
-    <ClCompile Include="monitor.cpp" />
     <ClCompile Include="mouse.cpp" />
     <ClCompile Include="readNumber.cpp" />
     <ClCompile Include="scmj.cpp" />

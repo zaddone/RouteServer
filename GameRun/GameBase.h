@@ -3,7 +3,7 @@
 #include "block.h"
 
 
-typedef void (*CallBackFun)(LPVOID handle,char * data,bool * wait);
+typedef void (*CallBackFun)(LPVOID handle,char * data);
 typedef void (*CallBackSendData)(LPVOID lpParamter,const char * data ,CallBackFun _call ,LPVOID _lp );
 bool hBitmap2Ipls(HBITMAP hBmp,IplImage* dst );
 IplImage* hBitmap2Ipl(HBITMAP hBmp );
@@ -17,12 +17,13 @@ public:
 	void SetCallBack(CallBackSendData _f , LPVOID lp);
 	bool ShowWindows();
 	virtual void CloseWindows(){};
-	virtual int  go(int roomID){return 0;};
+	virtual bool  go(int roomID){return true;};
+	virtual void reloadWindows(){};
 	TCHAR * gameName;
 	TCHAR * GName;
 	char * Tag;
 	char KeyID;
-	bool Stop;
+	
 	GameBase * Par;
 	//GameBase * NextGame;
 protected:
@@ -31,7 +32,8 @@ protected:
 	vector <Block*> BlockList;
 	CallBackSendData Func;
 	LPVOID lpParamter;
-
+	bool IsGo;
+	//bool isRun;
 	
 	void SetGNameAndTag(TCHAR * G);
 	void InRoom();

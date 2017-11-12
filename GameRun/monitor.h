@@ -20,7 +20,7 @@ private:
 	SocketBuffer * Client;
 	GameBase **  GameList;
 	int GameListCount;
-	bool isRun;
+	//bool isRun;
 	friend void goGame(LPVOID handle,char * data,bool * wait);
 	//TCHAR * start;
 	//int debug;

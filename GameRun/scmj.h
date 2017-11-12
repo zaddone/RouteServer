@@ -11,9 +11,13 @@ public:
 
 	//using GameBase::go;
     //virtual print(float a);
-	virtual int go(int roomID);
+	virtual bool go(int roomID);
 	//GameBase * Par;
 private:	
+	bool game();
+	bool checkRoom();
+	bool inRoom(int roomID);
+	bool inGame();
 	
 };
 

@@ -55,6 +55,9 @@ Block::Block(char *RectData,Block *_Par,int _id,char * GName){
 		p=strtok(NULL,d);
 		i++;  
 	}
+	char defPath[1024]={0};
+	GetTemplePath(defPath);
+	printf("%s\r\n",defPath);
 	this->GetChildBlock();
 }
 Block::~Block(){
@@ -97,40 +100,46 @@ void Block::GetChildBlock(){
         In.close();	
 	}
 }
-void Block::GetTemplePath(char TemplePath[1024]){
+void Block::GetTemplePath(char *TemplePath){
+	//printf("%d %s\r\n",this->ID,TemplePath);
+	char * newPath = new char[1024];
 	if (this->Par==NULL){
 		if (this->ID>=0){
+			//tmpPaht
 			int len = strlen(TemplePath);
-			if (len == 0 ) sprintf(TemplePath,"%s\\%d\0",this->tag  ,this->ID);			
-			else sprintf(TemplePath,"%s\\%d\\%s\0",this->tag ,this->ID,TemplePath);
+			if (len == 0 ) sprintf(newPath,"%s\\%d\0",this->tag  ,this->ID);			
+			else sprintf(newPath,"%s\\%d\\%s\0",this->tag ,this->ID,TemplePath);
 		}else{
 			int len = strlen(TemplePath);
-			if (len > 0 ) sprintf(TemplePath,"%s\0",this->tag  );			
-			else sprintf(TemplePath,"%s\\%s\0",this->tag  ,TemplePath);
+			if (len > 0 ) sprintf(newPath,"%s\0",this->tag  );			
+			else sprintf(newPath,"%s\\%s\0",this->tag  ,TemplePath);
 		}
 	}else{
 		if (this->ID>=0){
 			int len = strlen(TemplePath);
-			if (len == 0 )sprintf(TemplePath,"%d\0",this->ID);
-			else sprintf(TemplePath,"%d\\%s\0",this->ID,TemplePath);
+			if (len == 0 )sprintf(newPath,"%d\0",this->ID);
+			else sprintf(newPath,"%d\\%s\0",this->ID,TemplePath);
 		}
-		this->Par->GetChildFileName(TemplePath);
+		this->Par->GetTemplePath(newPath);
 	}
+	strcpy(TemplePath,newPath);
+	delete [] newPath;
 }
-void Block::GetChildFileName(char PathID[1024]){
-	
+void Block::GetChildFileName(char *PathID){
+	char * newPath = new char[1024];
 	if (this->Par==NULL){
 		int len = strlen(PathID);
 		//printf("%d %d\r\n",this->ID,len);
-		if (len == 0 ) sprintf(PathID,"%s_%d.log\0",this->tag  ,this->ID);			
-		else sprintf(PathID,"%s_%d_%s.log\0",this->tag  ,this->ID,PathID);
+		if (len == 0 ) sprintf(newPath,"%s_%d.log\0",this->tag  ,this->ID);			
+		else sprintf(newPath,"%s_%d_%s.log\0",this->tag  ,this->ID,PathID);
 	}else{
 		int len = strlen(PathID);
-		if (len == 0 )sprintf(PathID,"%d\0",this->ID);
-		else sprintf(PathID,"%d_%s\0",this->ID,PathID);
-		this->Par->GetChildFileName(PathID);
+		if (len == 0 )sprintf(newPath,"%d\0",this->ID);
+		else sprintf(newPath,"%d_%s\0",this->ID,PathID);
+		this->Par->GetChildFileName(newPath);
 	}
-
+	strcpy(PathID,newPath);
+	delete [] newPath;
 }
 void Block::LoadToTempleList(char * Filepath ){
 	struct _stat st;
@@ -143,7 +152,8 @@ void Block::LoadToTempleList(char * Filepath ){
 		if (result==0)this->NL = new NumberList(defPath,NULL,atoi(Filepath));		
 	}else if(!(st.st_mode & _S_IFDIR)){
 		IplImage * img = cvLoadImage(Filepath,CV_LOAD_IMAGE_UNCHANGED);
-		if (img != NULL)TempleList.push_back(new TempleImg(img,0));
+		
+		if (img != NULL)TempleList.push_back(new TempleImg(img,this->ID>=0?this->ID:0));
 		GetTemplePath(defPath);
 		result = _stat(defPath, &st);
 		if (result==0)LoadTempleForDir(defPath);
@@ -216,6 +226,17 @@ int Block::FindNL(IplImage * src ){
 	cvReleaseImage(&dst);
 	return n;	
 }
+void Block::ShowRectImg(IplImage * src){
+	cvSetImageROI(src, this->rect);
+	IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
+	cvCopy(src,dst);
+	cvResetImageROI(src);
+	cvNamedWindow("contour1");
+	cvShowImage("contour1", dst);  
+	cvWaitKey(0);
+	cvDestroyWindow("contour1");
+	cvReleaseImage(&dst);
+}
 Block * Block::GetChildOne(IplImage * src,int id){
 	if (id >= int(this->Child.size())){
 		int n = this->FindArr(src,true);
@@ -243,10 +264,13 @@ int Block::FindOne(IplImage * src){
 				this->Coord.push_back(coo);
 				n = (*it)->Tag;
 				sort(_TempleList.begin(),_TempleList.end(),compTempleImgOrder);	
-				printf("order %d %d\r\n",_TempleList.front()->order,_TempleList.size());
-				printf("loc %d %d\r\n",loc.x,loc.y);
-				if (loc.x !=0 || loc.y != 0){
-					this->rect = coo.rect;
+				//printf("order %d %d\r\n",_TempleList.front()->order,_TempleList.size());
+				//printf("loc %d %d\r\n",loc.x,loc.y);
+				if (loc.x !=this->rect.x || loc.y != this->rect.y){
+					this->rect.height = coo.rect.height;
+					this->rect.width = coo.rect.width;
+					this->rect.x = coo.rect.x;
+					this->rect.y = coo.rect.y;
 				}
 				break;
 			}
@@ -259,7 +283,8 @@ int Block::FindOne(IplImage * src){
 			Coordinate coo(0,0,0 );
 			//coo.rect = rect;	
 			TempleImg* Temp =NULL;
-			vector <TempleImg*> _TempleList = GetTempleList();
+
+			//vector <TempleImg*> _TempleList = GetTempleList();
 			cvSetImageROI(src, rect);
 			IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
 			cvCopy(src,dst);
@@ -284,8 +309,12 @@ int Block::FindOne(IplImage * src){
 				coo.v = n;
 				coo.te = Temp;
 				coo.rect = cvRect(rect.x+loc.x,rect.y+loc.y,Temp->img->width,Temp->img->height);
+				//coo.rect = cvRect(loc.x,loc.y,(*it)->img->width,(*it)->img->height);
 				if (loc.x !=0 || loc.y != 0){
-					this->rect= coo.rect;
+					this->rect.height = coo.rect.height;
+					this->rect.width = coo.rect.width;
+					this->rect.x = coo.rect.x;
+					this->rect.y = coo.rect.y;
 				}
 				
 				cvSetImageROI(src, rect);
@@ -305,6 +334,14 @@ int Block::FindOne(IplImage * src){
 			}
 		}
 		//printf("order %d %d\r\n",_TempleList.front()->order,_TempleList.size());
+	}else{
+		if (!this->Child.empty()){
+			for (vector<Block*>::iterator it = Child.begin(); it != Child.end(); it ++) {
+				n = (*it)->FindOne(src);
+				//(*it)->ShowRectImg(src);
+				if (n!= -1) return n;
+			}
+		}
 	}
 	//cvResetImageROI(src); 
 	//cvReleaseImage(&dst);
@@ -336,6 +373,7 @@ int Block::FindArr(IplImage * src,bool isUpdate){
 				break;
 			}
 			bl->Fill(src);
+			bl->TempleList.push_back(bl->Coord.back().te);
 			this->Coord.push_back(bl->Coord.back());
 			count++;
 		}
@@ -418,7 +456,7 @@ bool compBlockX(Block *a,Block *b){
 bool compBlockY(Block *a,Block *b){
 	return a->rect.y < b->rect.y;
 }
-bool compImg(IplImage * a,IplImage * b){
+bool compImg(IplImage * a,IplImage * b,CvRect rect){
 	int height     = a->height;
 	int width      = a->width;
 	if ( width != b->width) return false;
@@ -443,21 +481,11 @@ bool inSameOne(IplImage *img,CvRect rect ,IplImage * num,CvPoint *loc){
 
 	int h = rect.height - num->height;
 	int w = rect.width - num->width;
-	if (h==0 && w == 0){
-		if (compImg(img,num)){
-			loc->x = 0;
-			loc->y = 0;
-			return true;
-		}else{
-			return false;
-		}
-	}else{
-		//if (h<0 && w < 0){
-		//	return inSameOne(num,img,loc);
-		if(h<0 || w < 0){
-			return false;
-		}		
-	}
+ 
+	if(h<0 || w < 0){
+		return false;
+	}		
+ 
 	int height     =rect.y+ rect.height;
 	int width      =rect.x+ rect.width;
 	int step       = img->widthStep;

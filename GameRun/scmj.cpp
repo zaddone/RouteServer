@@ -12,58 +12,83 @@ Scmj::Scmj(const TCHAR * Base,CallBackSendData _f , LPVOID lp,TCHAR * _gName,cha
 	this->SetCallBack(_f,lp); 
 	wprintf(L"%s %s %d\r\n",GName,this->gameName,this->KeyID);
 }
-
-int Scmj::go(int roomID){
-	//printf("inRoom %d \r\n",roomID);
-	//this->Par->ShowWindows();
-	hBitmap2Ipls(Screen(),this->ScreenImg);
-	int n =this->BlockList[10]->FindOne(this->ScreenImg);
-	int i;
-	for(i=0;i<120;i++){
-		if (!this->Par->ShowWindows()) return -1;
+bool Scmj::checkRoom(){
+	for (int i = 0;i<120;i++){
+		
+		if (!this->Par->ShowWindows())return false;
+		hBitmap2Ipls(Screen(),this->ScreenImg);
+		int n =this->BlockList[10]->FindOne(this->ScreenImg);
+		if (n!= -1)return true;
 		this->InRoom();
 		Sleep(this->heartTime*2);
-		hBitmap2Ipls(Screen(),this->ScreenImg);
-		n = this->BlockList[10]->FindOne(this->ScreenImg);
-		if (n != -1)break;
 	}
-	if (i ==  120) return -1;
+	return false;
+}
+bool Scmj::inRoom(int roomID){
+	if (!checkRoom()) return false;
 
-	n = this->BlockList[12]->FindArr(this->ScreenImg);
+	int n = this->BlockList[12]->FindArr(this->ScreenImg);
 	if (n!=4){
 		printf("find not Room \r\n");
-		return -1;
+		return false;
 	}
 	Block * bl = this->BlockList[12]->GetChildOne(ScreenImg,roomID);
 	if (bl == NULL){
 		printf("find not Room %d \r\n",roomID);
-		return -1;
+		return false;
 	}
-	bl->ClickCoordinate(-1,1);
-	Sleep(this->heartTime*2);
-	hBitmap2Ipls(Screen(),this->ScreenImg);
-	n = this->BlockList[13]->FindOne(ScreenImg);
-	bool isBreak;
-	int j;
+	return bl->ClickCoordinate(-1,1);
+}
+bool Scmj::inGame(){
+
+	//bool isBreak;
+	int j,i,n;
 	for(i=0;i<60;i++){
 		Sleep(this->heartTime*2);
 		hBitmap2Ipls(Screen(),this->ScreenImg);
 		n = this->BlockList[13]->FindOne(ScreenImg);
 		if (n != -1){
 			this->BlockList[13]->ClickCoordinate(-1,1);
-			isBreak = false;
+			//isBreak = false;
 			for(j=0;j<20;j++){
 				Sleep(this->heartTime*2);
 				if (this->ShowWindows()){
-					isBreak = true;
-					break;
+					return true;
 				}
 			}
-			if (isBreak) break;			
-		}
+			//if (isBreak) break;			
+		}else if (!this->Par->ShowWindows())return false;
 	}
-	if (i ==  60) return -1;
+	return false;
+}
+bool Scmj::go(int roomID){
+	
+	//if (!checkRoom())return false;
+	if (!this->ShowWindows()){
+	if (! inRoom(roomID)) return false;
+	if (!inGame()) return false;
+	}
 
+	//in game
+	return game();
+}
+bool Scmj::game(){
+	IsGo = true;
+	int n;
+	do{
+		hBitmap2Ipls(Screen(),this->ScreenImg);
+		//n = this->BlockList[4]->FindArr(ScreenImg);
+		n = this->BlockList[4]->FindOne(ScreenImg);
+		if (n != -1){
+			char data[10]={0};
+			sprintf(data,"%d\0",n);
+			this->Func(this->lpParamter,data,NULL,NULL);
+			//LoadSendData(this->Client,"0",goGame,this);
+		}
+		printf("n-> %d\r\n",n);
+		//if (n==0)
 
-	return 0;
+		Sleep(this->heartTime);
+	}while(ShowWindows());
+	return IsGo;
 }

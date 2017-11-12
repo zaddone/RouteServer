@@ -24,13 +24,14 @@ public:
 	bool ClickCoordinateCheck(int _v,int num);
 	vector <Coordinate>  Coord;
 	CvRect  rect;
+	void ShowRectImg(IplImage * src);
 	
 private:
 	void LoadToTempleList(char * Filepath);
 	//void SaveTemple(IplImage * src);
 	void GetChildBlock();
-	void GetChildFileName(char  PathID[1024]);
-	void GetTemplePath(char TemplePath[1024]);
+	void GetChildFileName(char  *PathID );
+	void GetTemplePath(char *TemplePatho);
 	void ClearCoord();
 	void LoadTempleForDir(char * Filepath);
 	void Fill(IplImage * src);

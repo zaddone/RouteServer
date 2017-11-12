@@ -2,12 +2,18 @@
 //
 
 #include "stdafx.h"
-#include "monitor.h"
+#include "SendBuffer.h"
+#include "lobby.h"
+
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	Monitor *mo  =new Monitor( _T(".\\base.ini"));
-	mo->run();
+	TCHAR * base = _T(".\\base.ini");
+	SocketBuffer * Client = new SocketBuffer(base);
+	Lobby *lo  =new Lobby(base,LoadSendData,Client);
+	Client->SetReloadSystem(reloadServer,lo);
+	Client->start();
+	lo->go();
 	return 0;
 }
 

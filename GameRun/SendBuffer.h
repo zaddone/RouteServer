@@ -9,7 +9,7 @@ using namespace std;
 
 const char rander[63] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 const long TimeOut = 1000*60*5;  
-typedef void (*CallBackFun)(LPVOID handle,char * data,bool * wait);
+typedef void (*CallBackFun)(LPVOID handle,char * data);
 class SendDB  
 {  
 public:
@@ -19,17 +19,22 @@ public:
 	LPVOID lp;
 	char * data;
 	bool * Wait;
-}; 
+	char * recvBuf;
+	friend void syncWork(LPVOID lpParamter);
+};
 
 class SocketBuffer
 {
 public:
+	SocketBuffer(const TCHAR * Base);
 	SocketBuffer(char *_host,const int _port,const int heart,CallBackFun _reloadSystem = NULL,LPVOID _reloadSystemInfo=NULL);
 	~SocketBuffer();
 	friend void LoadSendData(LPVOID lpParamter,const char * data ,CallBackFun _call = NULL,LPVOID _lp = NULL);
 	//friend void LoadSendDataSync(LPVOID lpParamter,const char * data ,CallBackFun _call = NULL,LPVOID _lp = NULL);
 	char Key[6];
 	void SetReloadSystem(CallBackFun _reloadSystem ,LPVOID _reloadSystemInfo );
+	//void SetClockEnd(clock_t val){clock_end = val;};
+	void start();
 private:
 
 	CallBackFun reloadSystem;
@@ -42,12 +47,14 @@ private:
 	int port;
 	int HeartTime;
 	vector <SendDB*> Sendlist;
+	//vector <SendDB*> WaitWork;
 	void ConnServer();
 	void SetKey();
 	void sendData(const char * data);
 	void recvData(SendDB * db);
 	friend void runThread(LPVOID lpParamter);
 	void syncSend();
+	
 	void GetSendDB(const char * data,char * outData);
 };
 
