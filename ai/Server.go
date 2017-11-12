@@ -87,6 +87,7 @@ func LoadHandleFunc(){
 		}else{
 			u.SetProperty(n)
 		}
+		fmt.Println("Property",n)
 //		if u.GetBeginTimeDiff() > 300 {
 //			u.UpdateBeginTime()
 //			return []byte{2}
@@ -100,6 +101,10 @@ func LoadHandleFunc(){
 		return []byte{1}
 	}
 	HandleList[-1] = func(s []string,u Robot) []byte {
+		u.Init()
+		return []byte{'O', 0}
+	}
+	HandleList[0] = func(s []string,u Robot) []byte {
 		u.Init()
 		return []byte{'O', 0}
 	}
@@ -279,7 +284,7 @@ func AiDataHandle(data string,conn net.Conn) []byte {
 		return []byte{1}
 	}
 	str := strings.Split(data," ")
-//	fmt.Println(str)
+	fmt.Println(str)
 	key_1,err := strconv.Atoi(str[1])
 	if err != nil {
 		return []byte{1}

@@ -1,11 +1,11 @@
 package scann
 import(
-	"net/http"
-	"fmt"
+//	"net/http"
+//	"fmt"
 	"database/sql"
 )
 const(
-	scannIPdb = "/db/ProxyWeb.db"
+//	scannIPdb = "/db/ProxyWeb.db"
 )
 
 func CreateProxyWeb() error {
@@ -15,4 +15,5 @@ func CreateProxyWeb() error {
 	}
 	
 	_,err = db.Exec("CREATE TABLE `scannPort` (`port` INTEGER PRIMARY KEY NOT NULL,`order` INTEGER)")
+	return err
 }

@@ -1,0 +1,102 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Socket.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SendBuffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="common.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="scmj.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="block.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Coordinate.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="templeImg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="mouse.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="readNumber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="GameBase.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="lobby.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="GameRun.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Socket.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="SendBuffer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="common.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="scmj.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="block.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Coordinate.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="templeImg.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="mouse.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="readNumber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="GameBase.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="lobby.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
