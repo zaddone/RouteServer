@@ -24,9 +24,10 @@ func (self *Block) RunFind(a *Ai ) []*MJGrain {
 	//	g.O[0] += self.No[g.N]
 		g.O = append(g.O,2)
 		g.O = append(g.O,a.GetPublicNum(g,false))
-		g.O = append(g.O,self.No[g.N])
+		g.O = append(g.O,g.O[0])
 		g.O = append(g.O,0)
 		grs = append(grs,g)
+		g.O[0] = 0
 	}
 	var No [9]int
 	copy(No[0:],self.No)

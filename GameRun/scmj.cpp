@@ -231,13 +231,13 @@ void Scmj::ScreenSelf(int & lastN,int & lastn){
 	if (N == 55 ){
 		if (!this->Send_1()){
 			if (!this->Send_2()){					
-				if (!Send_4(lastn)){
+				if (!Send_4_1()){
 					this->Send_5();
 				}
 			}
 		}
 	}else{
-		if (!this->Send_4(lastn)){
+		if (!this->Send_4_1()){
 			this->Send_5();	
 		}
 	}		
@@ -584,10 +584,9 @@ bool Scmj::ClickSelfPan(int k){
 
 			n = this->BlockList[4]->FindOne(ScreenImg);
 			if (n != 4 && n != 3)break;
+			if ( this->BlockList[8]->Child[13]->FindOne(ScreenImg) ==  -1)break;
 
-			if ( !this->BlockList[8]->Child[12]->ClickFindOne(this->ScreenImg,k)){
-				break;
-			}
+			if ( !this->BlockList[8]->Child[12]->ClickFindOne(this->ScreenImg,k))break;
 
 		}while(true);
 

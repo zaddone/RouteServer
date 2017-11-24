@@ -566,9 +566,12 @@ for (r_iter = vec.rbegin(); // binds r_iter to last element
 			return true;
 		}
 	}
+
+	/**
 	if (!this->Child.empty()){
 		//this->ClearCoord();
 		for (vector<Block*>::iterator it = Child.begin(); it != Child.end(); it ++) {
+
 			if ((*it)->ClickFindOne(src,tag)){
 				//printf("click 1\r\n");
 				//this->Coord.push_back((*it)->Coord.back());
@@ -578,11 +581,12 @@ for (r_iter = vec.rbegin(); // binds r_iter to last element
 		//return n;
 	}
 	//Coordinate coo;
-	
+	**/
 	vector <TempleImg*> _TempleList = GetTempleList();
 	if (_TempleList.empty())return NULL;
 	TempleImg* Temp =NULL;
 
+	//vector <TempleImg*> _TempleTmp;
 	for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
 		if ((*it)->Tag == tag){
 			Temp=(*it);
