@@ -1,6 +1,6 @@
-package ai
+package mjai
 import(
-	"strconv"
+//	"strconv"
 	"time"
 	"fmt"
 	"net"
@@ -78,12 +78,14 @@ type UserPublic struct {
 	IsF  bool
 	LastSee int
 	NowVal int
+	TmpNowVal int
+	//LogData [][]byte
 }
 func (self *UserPublic) Init(){
 	self.IsF = false
 	self.Inv = -1
 	self.LastSee = -1
-//	self.NowVal = 0
+	self.NowVal = 0
 	for i,d := range self.See {
 		for j,_ := range d {
 			self.See[i][j] = 0
@@ -92,35 +94,16 @@ func (self *UserPublic) Init(){
 		}
 	}
 }
-func (self *UserPublic) SetNowBit( str []byte) (yu []int){
+func (self *UserPublic) SetNow( str []byte) (yu []int){
 	for i,d := range self.Now{
 		for j,_ := range d {
 			self.Now[i][j] = 0
 		}
 	}
+	var n int
 	for _,s := range str {
-		n := int(s)
+		n = int(s)
 		if n < 27 {
-			self.Now[n/9][n%9]++
-		}else{
-			yu = append(yu,n)
-		}
-	}
-
-	return yu
-}
-func (self *UserPublic) SetNow( str []string) (yu []int){
-	for i,d := range self.Now{
-		for j,_ := range d {
-			self.Now[i][j] = 0
-		}
-	}
-	for _,s := range str {
-		n,err := strconv.Atoi(s)
-		if err != nil {
-			panic(err)
-		}
-		if n > -1 && n < 27 {
 			self.Now[n/9][n%9]++
 		}else{
 			yu = append(yu,n)
@@ -132,10 +115,9 @@ func (self *UserPublic) SetNow( str []string) (yu []int){
 type Ai struct {
 	Public [4]*UserPublic
 	BaseVal int
-//	NowVal int
 	SumVal int
 	LastPublicId  int
-	LastForData [2]string
+	LastForData [2][]byte
 	Blocks [3]*Block
 	BlocksMap map[int]*Block
 	Room  int
@@ -146,17 +128,35 @@ type Ai struct {
 	Host int
 
 	SeeList [][]byte
+
 }
 func (self *Ai) SetSeeList(b []byte){
-	self.SeeList = append(self.SeeList,b)
-	if b[3]< 27 {
-		self.SetPublicSee(int(b[0]),int(b[3]))
+	n:=int(b[0])
+	if b[2]< 27 {
+		self.SetPublicSee(n,int(b[2]))
+	}else{
+		le := len(self.SeeList)-1
+		var lastDB []byte = nil
+		for i:=le;i>=0;i--{
+			if self.SeeList[i][0] != b[0] && self.SeeList[i][2]<27 {
+				lastDB = self.SeeList[i]
+				break
+			}
+		}
+		if lastDB != nil{
+			if b[1] == lastDB[1] {
+				self.SetPublicDown(n,int(lastDB[2]),2)
+			}
+		}
 	}
+	self.SetNowVal(n,comm.ByteToInt(b[3:]))
+	self.SetSumVal(int(b[1]))
+	self.SeeList = append(self.SeeList,b)
 }
-func (self *Ai) Begin1(b []byte) {
-	self.Init()
-	return nil
-}
+//func (self *Ai) Begin1(b []byte) {
+//	self.Init()
+//	return nil
+//}
 
 func (self *Ai) SetHost(conn net.Conn){
 	Host,_,err:= net.SplitHostPort(conn.RemoteAddr().String())
@@ -186,6 +186,7 @@ func (self *Ai) Init() {
 	}
 //	self.BlocksMap = make(map[int]*Block)
 //	self.Room = -1
+	self.SeeList = nil
 
 }
 func (self *Ai)GetProperty() int {
@@ -203,7 +204,7 @@ func (self *Ai) UpdateBeginTime(){
 func (self *Ai) SetLastUid(uid int) {
 	self.LastPublicId = uid
 }
-func (self *Ai) InitNow(str []string){
+func (self *Ai) InitNow(str []byte){
 	self.Public[3].SetNow(str)
 	for i,bl := range self.Blocks {
 		if bl == nil {
@@ -219,8 +220,9 @@ func (self *Ai) InitNow(str []string){
 	if self.Public[3].Inv == -1 {
 		self.Public[3].Inv = self.GetDiscard()
 	}
+	fmt.Println(self.Public[3].Now)
 }
-func (self *Ai) updateBlocksWeight(add bool,i,j,n int ){
+func (self *Ai) UpdateBlocksWeight(add bool,i,j,n int ){
 
 	if add {
 		self.Public[3].Now[i][j] += n
@@ -239,11 +241,12 @@ func (self *Ai) SetBaseVal(n int) {
 }
 func (self *Ai) GetFullVal( n int) (val int) {
 //	fmt.Println("full val",n,self.BaseVal,self.Public[3].NowVal)
-	if n ==0 || self.BaseVal == 0 {
+	if n ==0 || self.BaseVal == 0 || self.Public[3].NowVal == 0 {
 		return 0
 	}
+	self.Public[3].TmpNowVal = n
 	val =  (self.Public[3].NowVal-n )/self.BaseVal
-	if val>50{
+	if val>100{
 		val = 0
 	}
 	return val
@@ -258,14 +261,17 @@ func (self *Ai) GetLastSee() int {
 	}
 	return self.Public[self.LastPublicId].LastSee
 }
-func (self *Ai) SetLastForData(n int,s string){
+func (self *Ai) SetLastForData(n int,s []byte){
 	self.LastForData[n] = s
 }
-func (self *Ai) GetLastForData() [2]string{
+func (self *Ai) GetLastForData() [2][]byte{
 	return self.LastForData
 }
+func (self *Ai) GetNowVal(nid int) int{
+	return self.Public[nid].NowVal
+}
 func (self *Ai) SetNowVal(nid int,n int){
-	fmt.Println("NowVal",nid,n)
+//	fmt.Println("NowVal",nid,n)
 	self.Public[nid].NowVal = n
 //	self.NowVal = n
 }
@@ -279,6 +285,7 @@ func (self *Ai) SetPublicDown(nid int,n int,val int){
 	self.Public[nid].Down[n/9][n%9] = val
 }
 func (self *Ai) SetPublicSee(nid int,n int){
+	fmt.Println("see",nid,n)
 	self.Public[nid].See[n/9][n%9] ++
 	self.SetLastSee(nid,n)
 }
@@ -318,7 +325,7 @@ func (self *Ai) SelfSee(isf int,cOut int) (int) {
 				continue
 			}
 			if n == 4 {
-				self.Public[3].Down[i][j] = 4
+		//		self.Public[3].Down[i][j] = 4
 				return 32
 			}
 			_n := self.Public[3].Down[i][j]
@@ -332,13 +339,14 @@ func (self *Ai) SelfSee(isf int,cOut int) (int) {
 
 			gr1 := self.CheckJiao(isf,true)
 			if len(gr1) == 0 {
-				self.Public[3].Down[i][j] = 3
+		//		self.Public[3].Down[i][j] = 3
 				return 32
 			}
-			self.updateBlocksWeight(false,i,j,n)
+			self.UpdateBlocksWeight(false,i,j,n)
 			gr2 := self.CheckJiao(isf,true)
+	//		self.UpdateBlocksWeight(true,i,j,n)
 			if len(gr2) >0 {
-				self.Public[3].Down[i][j] = 3
+		//		self.Public[3].Down[i][j] = 3
 				return 32
 			}
 		}
@@ -426,13 +434,13 @@ func (self *Ai) Outs(isf int,No30 bool) (out int){
 	out = -1
 	InvBl := self.BlocksMap[self.GetValid(3)]
 	var gr *MJGrain = nil
-	defer func(){
-		if gr != nil {
-			self.Public[3].See[gr.H][gr.N]++
-			self.Public[3].Now[gr.H][gr.N]--
-			fmt.Println("self See",self.Public[3].Now,isf)
-		}
-	}()
+//	defer func(){
+//		if gr != nil {
+//		//	self.Public[3].See[gr.H][gr.N]++
+//		//	self.Public[3].Now[gr.H][gr.N]--
+//		//	fmt.Println("self See",self.Public[3].Now,isf)
+//		}
+//	}()
 	if InvBl.Num >0 {
 		G:
 		for _,bl := range InvBl.Bl {
@@ -501,7 +509,10 @@ func (self *Ai) Outs(isf int,No30 bool) (out int){
 
 
 }
-func (self *Ai) OutDiscard(num int) (o []int){
+func (self *Ai) ReloadSelfInv() {
+	self.Public[3].Inv = self.GetDiscard()
+}
+func (self *Ai) OutDiscard(num int) (o []byte){
 
 	if self.Public[3].Inv == -1 {
 		self.Public[3].Inv = self.GetDiscard()
@@ -513,7 +524,7 @@ func (self *Ai) OutDiscard(num int) (o []int){
 			n := self.Public[3].Now[bl.I][j]
 			for i:=0;i<n;i++{
 				self.Public[3].Now[bl.I][j]--
-				o = append(o,bl.I*9 + j)
+				o = append(o,byte(bl.I*9 + j))
 				num --
 				if num == 0 {
 					break G
@@ -525,7 +536,8 @@ func (self *Ai) OutDiscard(num int) (o []int){
 	for i :=num; i>0; i-- {
 		gr:=self.EasyOuts()
 	//	out := self.Outs(-1,false)
-		o = append(o,gr.H*9+gr.N)
+		self.Public[3].Now[gr.H][gr.N]--
+		o = append(o,byte(gr.H*9+gr.N))
 //		self.BlocksMap[]
 	}
 	return o
@@ -535,21 +547,29 @@ func (self *Ai) OutDiscard(num int) (o []int){
 //	return 0
 //}
 
-func (self *Ai) SeeOuts(v int,key []int,isf int) int{
+func (self *Ai) SeeOuts(v int,key []byte,isf int) byte {
 
 	if v <0 || v > 26 {
 		return 0
 	}
 	i:=v/9
 	j := v%9
-	ns :=0
-	defer func(){
-		fmt.Println("Down",v,isf)
-		self.Public[3].Down[i][j] = ns
-	}()
-	ks := [4]int{-1,-1,-1,-1}
+//	ns :=0
+//	no :=self.Public[3].Now[i][j]
+
+//	defer func(){
+//		fmt.Println("Down",v,isf)
+//		self.Public[3].Now[i][j] = no
+//		self.BlocksMap[i].Update()
+//	//	self.Public[3].Down[i][j] = ns
+//	}()
+	var ks [4]byte = [4]byte{5,5,5,5}
 	for _,k := range key {
-		ks[3-k] = k
+		if k >3 {
+			continue
+		}else{
+			ks[3-k] = k
+		}
 	}
 	for _,k := range ks {
 		if k == 3 {
@@ -565,7 +585,7 @@ func (self *Ai) SeeOuts(v int,key []int,isf int) int{
 			}
 			continue
 		}else if k == 2 {
-			ns = 3
+		//	ns = 3
 			return k
 
 		//	gr1 := self.CheckJiao(isf,true)
@@ -584,19 +604,16 @@ func (self *Ai) SeeOuts(v int,key []int,isf int) int{
 		}else if k == 1 {
 			gr1 := self.CheckJiao(isf,true)
 			if len(gr1) == 0 {
-				ns = 2
+			//	ns = 2
 				return k
 			}
 			self.Public[3].Now[i][j]=0
 			self.BlocksMap[i].Update()
-
-//			gr2 := 
-//			lg2 := len(gr2)
 			if self.CheckAllJiao(isf) != nil {
-				ns = 2
+			//	ns = 2
 				return k
-			//	continue
 			}
+
 		//	for gi:=0;gi <lg2;gi++{
 		//		SortdGrain(gr2,gi,0)
 		//	}
@@ -627,7 +644,7 @@ func (self *Ai) SeeOuts(v int,key []int,isf int) int{
 			return 0
 		}
 	}
-	return -1
+	return 0
 
 }
 func (self *Ai) CheckJiao(isf int,isM bool) (gr []*MJGrain) {

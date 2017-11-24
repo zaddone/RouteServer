@@ -10,10 +10,11 @@ import(
 	"os"
 	"./goini"
 	proxy "./proxyPool"
-	"./ai"
+//	"./ai"
 	"./scann"
-	_ "./go-sqlite3"
+//	_ "./go-sqlite3"
 	"./comm"
+	"./robot"
 )
 type ConnHandle func(conn net.Conn)
 var (
@@ -81,7 +82,7 @@ func ProxyHandle(conn net.Conn){
 //			ClearProxyPool(conn)
 //			return
 		}else  if buf[0] == 90{
-			ai.ConsoleHandle(conn)
+			robot.ConsoleHandle(conn)
 		//	_,err = conn.Write([]byte{1})
 		}
 		fmt.Println(err)
@@ -130,14 +131,14 @@ func init(){
 			return
 
 }())
-			ai.HostProxyMap[ips] = pr
+			robot.HostProxyMap[ips] = pr
 			ProxyPool[ips] = pr
 		}
 		pr.ConnChan<-conn
 //		log.Println(localhost,len(pr.ConnChan))
 	}
 	ListHandle[2] = func(conn net.Conn){
-		go ai.AiHandle(conn)
+		go robot.Handle(conn)
 	}
 }
 
@@ -181,6 +182,6 @@ func main(){
 		}
 	}else{
 		go proxy.CheckProxyPoolServer()
-		ai.ClearServer()
+		robot.ClearServer()
 	}
 }

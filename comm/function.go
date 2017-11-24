@@ -34,3 +34,10 @@ func StringIpToInt(ipstring string) int {
     }
     return ipInt
 }
+func ByteToInt(s []byte) (pro int) {
+	pro=0
+	for i:=len(s)-1;i>=0;i--{
+		pro = (pro<<8) | int(s[i])
+	}
+	return pro
+}
