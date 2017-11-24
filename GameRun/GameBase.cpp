@@ -3,7 +3,45 @@
 #include <fstream>
 #include "common.h"
 
-
+PushData::PushData(int max){
+	this->data = new char[max];
+	this->len=0;
+	this->Max = max;
+}
+PushData::~PushData(){
+	delete [] data;
+}
+void PushData::add(const char v){
+	data[len]=v;
+	len++;
+}
+void PushData::add(const int v){
+	size_t l = sizeof(v);
+	memcpy(data+len,&v,l);
+	len+=l;
+}
+void PushData::add(const char * v,const int l){
+	memcpy(data+len,v,l);
+	len+=l;
+}
+char * PushData::GetData(){
+	return this->data;
+}
+int PushData::GetDataLen(){
+	return this->len;
+}
+void GameBase::trainBlock(CallBackTask _f){
+	for (vector<Block*>::iterator it = BlockList.begin(); it != BlockList.end(); it ++) {
+		(*it)->ErgodicBlock(_f);
+		//if ((*it)->NL == NULL)
+	}
+}
+void GameBase::trainBlockNL(){
+	for (vector<Block*>::iterator it = BlockList.begin(); it != BlockList.end(); it ++) {
+		(*it)->ErgodicBlock(trainNL);
+		//if ((*it)->NL == NULL)
+	}
+}
 void GameBase::SetCallBack(CallBackSendData _f , LPVOID lp){
 	this->Func = _f;
 	this->lpParamter = lp;

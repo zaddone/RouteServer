@@ -1,11 +1,9 @@
 #include "stdafx.h"
 #include "templeImg.h"
 //#include <time.h>
-#include <direct.h>  
-#include <io.h> 
+#include "common.h"
 #include <sys/stat.h>  
-#define ACCESS _access  
-#define MKDIR(a) _mkdir((a))
+
 
 TempleImg::TempleImg(IplImage * src ,const int tag,int _order ){
 	this->img = src;
@@ -47,39 +45,10 @@ bool compTempleImgOrder(TempleImg *a,TempleImg *b)
 {
 	return a->order > b->order;
 }
-int CreatDir(char *pDir){  
-    int i = 0;  
-    int iRet;  
-    int iLen;  
-    char* pszDir;  
-  
-    if(NULL == pDir)  
-    {  
-        return 0;  
-    }  
-      
-    pszDir = _strdup(pDir);  
-    iLen = int(strlen(pszDir));  
-    for (i = 0;i < iLen;i ++)  
-    {  
-        if (pszDir[i] == '\\' || pszDir[i] == '/')  
-        {   
-            pszDir[i] = '\0';   
-            iRet = ACCESS(pszDir,0);  
-            if (iRet != 0)  
-            {  
-                iRet = MKDIR(pszDir);  
-                if (iRet != 0)  
-                {  
-                    return -1;  
-                }   
-            }
-            pszDir[i] = '/';  
-        }   
-    }  
-  
-    iRet = MKDIR(pszDir);  
-    //free(pszDir);  
-	delete []pszDir;
-    return iRet;  
+void TempleImg::ShowImg(){
+	cvNamedWindow("contour1");
+	cvShowImage("contour1", this->img);  
+	cvWaitKey(0);
+	cvDestroyWindow("contour1");
+	//cvReleaseImage(&dst);
 }

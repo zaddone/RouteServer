@@ -5,21 +5,20 @@
 #include<vector>
 using namespace std;
 
-#define random(x) (rand()%x)
-
-const char rander[63] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 const long TimeOut = 1000*60*5;  
-typedef void (*CallBackFun)(LPVOID handle,char * data);
+typedef void (*CallBackFun)(LPVOID handle,char * data,int len);
 class SendDB  
 {  
 public:
-	SendDB(CallBackFun _call,LPVOID _lp,char * _data,bool * w );
+	SendDB(char * _data,int len,bool * w = NULL,CallBackFun _call = NULL,LPVOID _lp=NULL );
 	~SendDB();
 	CallBackFun call;
 	LPVOID lp;
-	char * data;
+	char * sendBuf;
+	int  sendLen ;
 	bool * Wait;
 	char * recvBuf;
+	int recvLen;
 	friend void syncWork(LPVOID lpParamter);
 };
 
@@ -29,11 +28,11 @@ public:
 	SocketBuffer(const TCHAR * Base);
 	SocketBuffer(char *_host,const int _port,const int heart,CallBackFun _reloadSystem = NULL,LPVOID _reloadSystemInfo=NULL);
 	~SocketBuffer();
-	friend void LoadSendData(LPVOID lpParamter,const char * data ,CallBackFun _call = NULL,LPVOID _lp = NULL);
+	friend void LoadSendData(LPVOID lpParamter,const char * data,int len ,CallBackFun _call = NULL,LPVOID _lp = NULL);
 	//friend void LoadSendDataBit(LPVOID lpParamter,const char * data ,CallBackFun _call = NULL,LPVOID _lp = NULL);
 	//friend void LoadSendDataSync(LPVOID lpParamter,const char * data ,CallBackFun _call = NULL,LPVOID _lp = NULL);
-	char Key[6];
-	//signed char keyID;
+	//char Key[6];
+	char keyID;
 	void SetReloadSystem(CallBackFun _reloadSystem ,LPVOID _reloadSystemInfo );
 	//void SetClockEnd(clock_t val){clock_end = val;};
 	void start();
@@ -55,12 +54,14 @@ private:
 	//vector <SendDB*> WaitWork;
 	void ConnServer();
 	void SetKey();
-	void sendData(const char * data);
+	//void sendData(const char * data);
+	void sendData(const char * data,const int len);
 	void recvData(SendDB * db);
 	friend void runThread(LPVOID lpParamter);
 	void syncSend();
-	
-	void GetSendDB(const char * data,char * outData);
+	void updateKeyId(SendDB * db);
+	//void GetSendDB(const char * data,char * outData);
+	char * GetSendBit(const char * data,int & len);
 };
 
 

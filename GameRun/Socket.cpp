@@ -154,6 +154,9 @@ void Socket::SendLine(std::string s) {
   s += '\n';
   send(s_,s.c_str(),s.length(),0);
 }
+int Socket::SendBytes(const char *s,const int len) {
+  return send(s_,s ,len ,0);
+}
 void Socket::SendBytes(const char *s) {
   send(s_,s ,strlen(s) ,0);
 }
@@ -203,7 +206,7 @@ Socket* SocketServer::Accept() {
   return r;
 }
 
-SocketClient::SocketClient(const std::string& host, int port) : Socket() {
+SocketClient::SocketClient(const std::string& host, int port,int iTimeOut) : Socket() {
   std::string error;
 
   hostent *he;
@@ -218,6 +221,10 @@ SocketClient::SocketClient(const std::string& host, int port) : Socket() {
   addr.sin_addr = *((in_addr *)he->h_addr);
   memset(&(addr.sin_zero), 0, 8); 
 
+  //int iTimeOut = 15000;
+  setsockopt(s_,SOL_SOCKET,SO_RCVTIMEO,(char*)&iTimeOut,sizeof(iTimeOut));
+  setsockopt(s_,SOL_SOCKET,SO_SNDTIMEO,(char*)&iTimeOut,sizeof(iTimeOut));
+	
   if (::connect(s_, (sockaddr *) &addr, sizeof(sockaddr))) {
     error = strerror(WSAGetLastError());
     throw error;

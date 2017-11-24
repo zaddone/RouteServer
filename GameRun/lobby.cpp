@@ -19,7 +19,7 @@ Lobby::Lobby(const TCHAR * Base,CallBackSendData _f , LPVOID lp,TCHAR * _gName):
 	Game1->Par = this;
 	GameList.push_back(Game1);
 	IsGo=true;
-
+	this->KeyID = 0;
 }
 Lobby::~Lobby() {
 	//GameBase:~GameBase();
@@ -35,12 +35,57 @@ bool Lobby::go(){
 
 	while(IsGo){
 		start();
-		
-		this->Func(this->lpParamter,"0",goGame,this);
+		char d[2]={KeyID,0};
+		this->Func(this->lpParamter,d,2,goGame,this);
 		//Sleep(this->heartTime);
 	}
 	//reloadWindows();
 	return true;
+}
+
+void Lobby::ScreenSave(){
+	if (!::IsClipboardFormatAvailable(CF_BITMAP)){
+		//printf("IsClipboardFormatAvailable\n"); CF_TEXT
+		return;
+	}
+	//HBITMAP H;
+	if (::OpenClipboard (NULL)) {
+		//H = (HBITMAP)::GetClipboardData(CF_BITMAP);
+		//if (this->ScreenImg == NULL) ScreenImg =  hBitmap2Ipl(H);
+		//else hBitmap2Ipls(H,ScreenImg );
+
+		hBitmap2Ipls(Screen(),this->ScreenImg );
+		char file[1024]={0};
+		sprintf(file,"coll\\%d.bmp\0",clock());
+		cvSaveImage(file,ScreenImg);
+		printf("Screen Save to %s\r\n",file);
+		//delete [] file;
+		::EmptyClipboard();
+		::CloseClipboard ();
+	}
+	return;
+
+}
+
+void Lobby::trainBlock(CallBackTask _f){
+	for (vector<Block*>::iterator it = BlockList.begin(); it != BlockList.end(); it ++) {
+		(*it)->ErgodicBlock(_f);
+	}
+	for (vector<GameBase *>::iterator it = GameList.begin(); it != GameList.end(); it ++) {
+		(*it)->trainBlock(_f);
+	}
+
+}
+
+void Lobby::trainBlockNL(){
+
+	for (vector<Block*>::iterator it = BlockList.begin(); it != BlockList.end(); it ++) {
+		(*it)->ErgodicBlock(trainNL);
+	}
+	for (vector<GameBase *>::iterator it = GameList.begin(); it != GameList.end(); it ++) {
+		(*it)->trainBlockNL();
+	}
+
 }
 void Lobby::start(){
 	ShellExecute(NULL, _T("open") , _start, _T(""),_T(""),SW_SHOW );
@@ -49,17 +94,12 @@ void Lobby::start(){
 }
 void Lobby::reloadWindows(){
 	CloseWindows();
-	//printf("begin %d\r\n",clock());
-	
-	//printf("end %d\r\n",clock());
 	start();
 }
-void reloadServer(LPVOID handle,char * data ){
-	printf("reloadServer\r\n");
+void reloadServer(LPVOID handle,char * data,int len ){
+
 	Lobby * lo = (Lobby * )handle;
-	//lo->reloadWindows();
 	lo->CloseWindows();
-	//if (wait != NULL)wait[0] = false;
 
 }
 void Lobby::CloseWindows(){
@@ -104,35 +144,28 @@ bool Lobby::checkStart(){
 	this->BlockList[0]->rect.x = coor.rect.x+ coor.rect.width;
 	this->BlockList[0]->rect.y = coor.rect.y;
 	int num = this->BlockList[0]->FindNL(ScreenImg);
-
-	printf("NL num %d\r\n",num);
-	char data[10] = {0};
-	sprintf(data,"-3 %d",num);
-
-	this->Func(this->lpParamter,data,NULL,NULL);
+	size_t len = sizeof(num);
+	PushData * da = new PushData();
+	da->add(KeyID);
+	da->add(char(1));
+	da->add(num);
+	this->Func(this->lpParamter,da->GetData(),da->GetDataLen(),NULL,NULL);
+	delete da;
 	this->IsGo = true;
 	return true;
 }
-void goGame(LPVOID handle,char * data ){
-	//data[0]
-	//printf("%s\r\n",data);
-	//Sleep(5000);
-	//return;
+void goGame(LPVOID handle,char * data ,int len){
+
+	if (len<2)return;
 	Lobby *m = (Lobby*)handle;
-	//bool isOut;
 	for (vector<GameBase *>::iterator it = m->GameList.begin(); it != m->GameList.end(); it ++) {
 		if ((*it)->KeyID == data[0]){
-			//isOut=false;
-			//while(!isOut){
-			//m->IsGo = (*it)->go(int(data[1]));
+			//printf("%d\r\n",data[0]);
 			if (!(*it)->go(int(data[1]))){
 				(*it)->Par->CloseWindows();
 			}
-			//  Sleep(m->heartTime);
-			//}
 			break;
 		}
 	}
-//	if (wait != NULL)wait[0] = false;
 
 }

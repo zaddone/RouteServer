@@ -5,32 +5,108 @@
 //#include <direct.h>  
 #include <sys/stat.h>  
 
+TrainTemple::TrainTemple(char * _path,char * _toPath){
+	this->img = cvLoadImage(_path,CV_LOAD_IMAGE_ANYDEPTH);
+	//this->img = _img;
+	//if (_path != NULL){
+	//Path = new char[strlen(_path)];
+	strcpy(this->Path , _path);
+	if (_toPath != NULL){
+		//this->toPath =  new char[strlen(_toPath)];
+		strcpy(this->toPath , _toPath);
+	}else{
+		toPath[0] = 0;
+	}
+}
+TrainTemple::~TrainTemple(){
+	//printf("run delete toPath\r\n");
+	//if (this->toPath != NULL) delete [] this->toPath;
+	//printf("delete img\r\n");
+	if (img != NULL) {
+		//printf("delete img 0\r\n");
+		cvReleaseImage(&img);
+		
+	}
+	//printf("delete path %s\r\n",Path);
+	//if (this->Path != NULL) delete [] this->Path;
+	//printf("run delete over \r\n");
+}
+void TrainTemple::Remove(){
+	remove(this->Path);
+}
+void TrainTemple::MoveTo(char * _path,char * name){
+	SaveTempleName(_path,name,img);
+}
+bool TrainTemple::IsSame(TrainTemple * t){
+	CvPoint loc;
+	return inSameOne(this->img,cvRect(0,0,img->width,img->height),t->img,&loc);
+}
+bool TrainTemple::Show(){
+	
+	printf("%s\r\n",this->Path);
+	cvNamedWindow("contour1");
+	cvShowImage("contour1", img);  
+	char ValStr;
+	char newFile[5]={0};
+	int len = 0;
+	do {
+		ValStr=cvWaitKey(0);
+		if (ValStr == 27){
+			len= 0;
+			break;
+		}else if (ValStr>47 && ValStr<58){
+			newFile[len] = ValStr;
+			len++;
+		}else{
+			break;
+		}
+	}while(true);
+	if (len>0){
+		//char fileName[1024];
+		//sprintf(fileName,"%s\\%s.bmp",strlen(this->toPath)== 0 ? path:toPath,newFile);
+		this->MoveTo(strlen(this->toPath)== 0 ? Path:toPath,newFile);
+	}
+
+	cvDestroyWindow("contour1");
+	if (ValStr == 27){
+		return false;
+	}
+	
+	return true;
+}
 
 Block::Block(CvRect r,Block * _Par){
 	rect = r;
 	this->Par = _Par;
 	this->ID = -1;
 	this->NL = NULL;
+	this->MaxVal = 0.8;
 	if (_Par != NULL){
-		int Sep = _Par->Sep;
-		int Coll = _Par->Coll;
+		//int Sep = _Par->Sep;
+		this->Coll = _Par->Coll;
 		
 		this->tag = _Par->tag;
 		this->ID = this->Par->Child.size();
-		this->Par->Child.push_back(this);
+		//this->Par->Child.push_back(this);
+		this->MaxVal  =_Par->MaxVal;
 	}
-	
+	Nothing = NULL;
+	CollPath = NULL;
 }
 Block::Block(char *RectData,Block *_Par,int _id,char * GName){
 	this->ID = _id;
 	this->tag = GName;
 	this->Par = _Par;
 	this->NL = NULL;
+	CollPath = NULL;
+	Nothing = NULL;
+	MaxVal = 0.8;
 	CvPoint po = {0,0};
 	if (_Par != NULL){
 		po.x = _Par->rect.x;
 		po.y = _Par->rect.y;
-		this->Par->Child.push_back(this);
+		//this->Par->Child.push_back(this);
+		MaxVal = _Par->MaxVal;
 	}
 	//printf("%s %s \r\n",RectData,GName);
 	char *p ;
@@ -38,6 +114,7 @@ Block::Block(char *RectData,Block *_Par,int _id,char * GName){
 	p = strtok(RectData,d);
 	int i=0;
 	int re[4];
+	
 	while(p){
 		if (i<4){
 			re[i]=atoi (p);
@@ -50,14 +127,20 @@ Block::Block(char *RectData,Block *_Par,int _id,char * GName){
 		//}else if (i == 5){
 			this->Coll = atoi(p);
 		}else if (i == 5) {
-			LoadToTempleList(p);			
+			LoadToTempleList(p);
+		}else if (i == 6) {
+			MaxVal = atoi(p);
+			while(MaxVal>=1){
+				MaxVal *= 0.1;
+			}
+			if (MaxVal == 0)MaxVal = 0.8;
 		}
 		p=strtok(NULL,d);
 		i++;  
 	}
 	char defPath[1024]={0};
 	GetTemplePath(defPath);
-	//printf("%s\r\n",defPath);
+	//printf("%f %d\r\n",MaxVal,Sep);
 	this->GetChildBlock();
 }
 Block::~Block(){
@@ -72,6 +155,11 @@ Block::~Block(){
 	TempleList.clear();
 	ClearCoord();
 	delete NL;
+	if (CollPath != NULL) delete [] CollPath;
+	for (vector<TrainTemple *>::iterator it = TrainList.begin(); it != TrainList.end(); it ++) {
+		if ((*it)!= NULL )delete (*it);
+	}
+	
 }
 void Block::ClearCoord(){
 	//for (vector<Coordinate>::iterator it = Coord.begin(); it != Coord.end(); it ++) {
@@ -94,7 +182,7 @@ void Block::GetChildBlock(){
 				break;
 			}
 			Block *bl = new Block(tmpStr,this,UserArrLen,this->tag);
-			//Child.push_back(bl);
+			Child.push_back(bl);
 			UserArrLen++;
 		}
         In.close();	
@@ -148,8 +236,11 @@ void Block::LoadToTempleList(char * Filepath ){
     result = _stat(Filepath, &st);	
 	if (result!=0){		
 		GetTemplePath(defPath);
-		result = _stat(defPath, &st);
-		if (result==0)this->NL = new NumberList(defPath,NULL,atoi(Filepath));		
+		//result = _stat(defPath, &st);
+		//if (result==0)
+		int sep = atoi(Filepath);
+		if (sep >0 && sep < 255)
+			this->NL = new NumberList(defPath,this->Coll,sep);		
 	}else if(!(st.st_mode & _S_IFDIR)){
 		IplImage * img = cvLoadImage(Filepath,CV_LOAD_IMAGE_UNCHANGED);
 		
@@ -212,16 +303,120 @@ NumberList * Block::GetNumblerListClass(){
 	}
 	return this->NL;
 }
+
+void Block::ErgodicBlock(CallBackTask _f ){
+	_f(this);
+	for (vector<Block *>::iterator it = Child.begin(); it != Child.end(); it ++) {
+		(*it)->ErgodicBlock(_f);
+	}
+}
+void trainNL(LPVOID lpParamter){
+	Block * bl = (Block *)lpParamter;
+	if (bl->NL == NULL) {
+		
+	}else{
+		bl->NL->ReadDirImg(NULL);
+		bl->NL->ReadListImg();
+	}
+}
+void Block::AddTrainTemple(char *path){
+	TrainTemple *t = new TrainTemple(path);
+	if (t->img == NULL){
+		//printf("delete 0 %s\r\n",t->Path);
+		delete t;
+		return;
+	}
+	for (vector<TrainTemple*>::iterator it = this->TrainList.begin(); it != this->TrainList.end(); it ++) {
+		if ((*it) == NULL) continue;
+		if ((*it)->IsSame(t)){	
+			//printf("delete 1 %s\r\n",t->Path);
+			t->Remove();
+			delete t;
+			t = NULL;
+			break;
+		}else  if (t->IsSame((*it))){				
+			//printf("delete 2 %s\r\n",(*it)->Path);
+			(*it)->Remove();
+			delete (*it);
+			(*it) =NULL;
+			TrainList.erase(it);
+			//t = NULL;
+			break;
+		}
+	}
+	if (t != NULL){
+		this->TrainList.push_back(t);
+	}
+}
+void train(LPVOID lpParamter){
+	Block * bl = (Block *)lpParamter;
+	if (bl->NL != NULL) {
+		bl->NL->ReadDirImg(NULL);
+		bl->NL->ReadListImg();
+		return;
+	}
+	if (bl->Coll != 1) return;
+	if (bl->CollPath == NULL){
+		char defPath[1024]={0};
+		bl->GetTemplePath(defPath);
+		bl->CollPath = new char [1024];
+		sprintf(bl->CollPath,"coll\\%s\0",defPath);
+	}
+	printf("%s\r\n",bl->CollPath);
+	bl->ReadDirImg(bl->CollPath);
+	
+	for (vector<TrainTemple*>::iterator it = bl->TrainList.begin(); it != bl->TrainList.end(); it ++) {
+		//if (!(*it)->Show()){
+		delete (*it);
+		//}
+	}
+	bl->TrainList.clear();
+}
+void Block::ReadDirImg(const char * path ){
+	if (path== NULL) return;	
+	struct _stat st;
+	if (0 != _stat(path, &st)) return;
+
+	struct _finddata_t fd;
+	char searchPath[1024];
+	char pathFile[1024];
+	sprintf(searchPath,"%s\\*",path);
+	size_t nlen =0;
+	intptr_t handle = _findfirst(searchPath, &fd);
+	if (handle != -1) {
+		do   {
+			if (fd.attrib & _A_SUBDIR)    
+			{
+				if( (strcmp(fd.name,".") != 0 ) &&(strcmp(fd.name,"..") != 0))   
+				{	
+					sprintf(pathFile,"%s\\%s",path,fd.name);
+					this->ReadDirImg(pathFile );
+				}
+			}else{
+				sprintf(pathFile,"%s\\%s",path,fd.name);	
+				this->AddTrainTemple(pathFile);
+			}
+
+		}while (_findnext(handle, &fd)==0);
+		_findclose(handle);
+	}
+}
 int Block::FindNL(IplImage * src ){	
-	cvSetImageROI(src, this->rect);
-	IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
-	cvCopy(src,dst);
-	cvResetImageROI(src);	
-	int n = 0;
+	
+	if (this->Nothing != NULL){
+		//CvPoint loc;
+		if (compImg(src,Nothing->img,rect)){
+			return this->Nothing->Tag;
+		}else{
+			delete Nothing;
+			Nothing = NULL;
+		}
+	}
+	Nothing = new TempleImg(src, rect,0 );
 	NumberList * _NL = GetNumblerListClass();
-	if (_NL != NULL)n = _NL->Know(dst);		
-	cvReleaseImage(&dst);
-	return n;	
+	if (_NL != NULL)Nothing->Tag = _NL->Know(Nothing->img);
+	return Nothing->Tag;
+
 }
 void Block::ShowRectImg(IplImage * src){
 	cvSetImageROI(src, this->rect);
@@ -242,189 +437,351 @@ Block * Block::GetChildOne(IplImage * src,int id){
 	return this->Child[id];
 }
 int Block::FindOne(IplImage * src){
-	CvPoint loc;	
 	int n = -1;	
-	 
-	for (vector<Coordinate>::iterator it = Coord.begin(); it != Coord.end(); it ++){
-		if (inSameOne(src,(*it).rect, (*it).te->img,&loc)){
-			(*it).order = Coord.front().order+1;
-			n = (*it).te->Tag;
-			sort(Coord.begin(),Coord.end(),compCoordinateOrder);
-			//printf("0 out\r\n");
-			return n;
-		}
-	}
-		
- 
-	vector <TempleImg*> _TempleList = GetTempleList();
-
-	if (!_TempleList.empty()){
-		if ( Coord.size() < _TempleList.size() ){
-			for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
-				if (inSameOne(src,rect, (*it)->img,&loc)){
-					Coordinate coo((*it) , cvRect(loc.x,loc.y,(*it)->img->width,(*it)->img->height));	
-					//coo.rect = cvRect(loc.x,loc.y,(*it)->img->width,(*it)->img->height);
-					//coo.te = (*it);				
-					this->Coord.push_back(coo);
-					coo.order = Coord.front().order+1;
-					sort(Coord.begin(),Coord.end(),compCoordinateOrder);
-					n = (*it)->Tag;
-					//printf("1 out\r\n");
-					return n;
-				}
-			}
-		}
-		double max = 0,val;
-		CvPoint  l;
-		
-		TempleImg* Temp =NULL;
-		cvSetImageROI(src, rect);
-		IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
-		cvCopy(src,dst);
-		cvResetImageROI(src); 
-		for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
-			val = inSameOneT(dst, (*it)->img,&l);
-			if (val < 0.8) {
-				continue;
-			}
-			if (val>max){
-				Temp = (*it);
-				max = val;
-				loc.x = rect.x+l.x;
-				loc.y = rect.y+l.y;					 
-			}
-		}
-		cvReleaseImage(&dst);
-		if (Temp != NULL){
-			n = Temp->Tag;
-			CvRect r= cvRect(loc.x, loc.y,Temp->img->width,Temp->img->height);
-			Coordinate coo(new TempleImg(src, r,n ),r);
-			//coo.rect = cvRect( loc.x, loc.y,Temp->img->width,Temp->img->height);
-
-			//coo.te = new TempleImg(src, coo.rect,n );
-			char defPath[1024]={0};
-			GetTemplePath(defPath);
-			coo.te->SaveTemple(defPath);
-			_TempleList.push_back(coo.te);
-			this->Coord.push_back(coo);
-			coo.order = Coord.front().order+1;
-			sort(Coord.begin(),Coord.end(),compCoordinateOrder);
-			//printf("2 out\r\n");
-			return n;
-		}
-
-	}	
 	if (!this->Child.empty()){
 		for (vector<Block*>::iterator it = Child.begin(); it != Child.end(); it ++) {
 			n = (*it)->FindOne(src);
+			//this->Coord.push_back((*it)->Coord.back());
 			//(*it)->ShowRectImg(src);
-			if (n!= -1) return n;
+			if (n != -1) return n;
+		}
+		return n;
+	}
+	CvPoint loc;
+	if (this->Nothing!= NULL){
+		if (inSameOne(src,rect, Nothing->img,&loc)){
+			return Nothing->Tag;
+		}else{
+			delete Nothing;
+			Nothing = NULL;
+		}
+	}	
+	
+	for (vector<Coordinate>::reverse_iterator it = Coord.rbegin(); it != Coord.rend(); ++ it ){	
+	//for (vector<Coordinate>::iterator it = Coord.begin(); it != Coord.end(); it ++){
+		if (compImg(src,(*it).te->img,(*it).rect )){
+			//Coordinate c = (*it);
+			n = (*it).te->Tag;
+			//Coord.cbegin()
+			swap((*it),Coord.back());
+			//Coord.push_back(c);
+			return  n;
+		}
+	}	
+
+	vector <TempleImg*> _TempleList = GetTempleList();
+	if (_TempleList.empty())return n;
+	/**
+	for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
+		if (inSameOne(src,this->rect, (*it)->img,&loc)){
+			Coordinate coo((*it),cvRect(loc.x, loc.y,(*it)->img->width,(*it)->img->height));
+			this->Coord.push_back(coo);
+			return (*it)->Tag;			
 		}
 	}
-
-	return n;
-}
-
-int Block::FindOneS(IplImage * src){
-	CvPoint loc;
-	//cvSetImageROI(src, rect);
-	//IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
-	//cvCopy(src,dst);
-	//cvResetImageROI(src); 
-	this->ClearCoord();
-	int n = -1;
-	vector <TempleImg*> _TempleList = GetTempleList();
-	if (!_TempleList.empty()){
-		//cvSetImageROI(src, rect);
-		for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
-			if (inSameOne(src,rect, (*it)->img,&loc)){
-				//(*it)->order++;
-				Coordinate coo((*it),cvRect(loc.x,loc.y,(*it)->img->width,(*it)->img->height));	
-				this->Coord.push_back(coo);
-				n = (*it)->Tag;
-				//sort(_TempleList.begin(),_TempleList.end(),compTempleImgOrder);	
-				//printf("order %d %d\r\n",_TempleList.front()->order,_TempleList.size());
-				//printf("loc %d %d\r\n",loc.x,loc.y);
-				if (loc.x !=this->rect.x || loc.y != this->rect.y){
-					this->rect.height = coo.rect.height;
-					this->rect.width = coo.rect.width;
-					this->rect.x = coo.rect.x;
-					this->rect.y = coo.rect.y;
-				}
-				break;
-			}
+	**/
+	
+	double max = 0,val;
+	CvPoint  l;
+	
+	TempleImg* Temp =NULL;
+	cvSetImageROI(src, rect);
+	IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
+	cvCopy(src,dst);
+	cvResetImageROI(src); 
+	for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
+		/**
+		if (inSameOne(src,this->rect, (*it)->img,&loc)){
+			Coordinate coo((*it),cvRect(loc.x, loc.y,(*it)->img->width,(*it)->img->height));
+			this->Coord.push_back(coo);
+			return (*it)->Tag;			
 		}
-		//cvResetImageROI(src); 
-		
-		if (n == -1 && _TempleList.front()->order == 0){
-			double max = 0,val;
-			CvPoint  l;
-			
-			//coo.rect = rect;	
-			TempleImg* Temp =NULL;
-
-			//vector <TempleImg*> _TempleList = GetTempleList();
-			cvSetImageROI(src, rect);
-			IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
-			cvCopy(src,dst);
-			cvResetImageROI(src); 
-			for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
-				val = inSameOneT(dst, (*it)->img,&l);
-				if (val < 0.8) {
-					continue;
-				}
-				if (val>max){
-					Temp = (*it);
-					max = val;
-					loc.x = l.x;
-					loc.y = l.y;					 
-				}
-			}
-			cvReleaseImage(&dst);
-			if (Temp != NULL){
-				n = Temp->Tag;
-				Coordinate coo(Temp,cvRect(rect.x+loc.x,rect.y+loc.y,Temp->img->width,Temp->img->height));
-				//coo.te = Temp;
-				//coo.rect = cvRect(rect.x+loc.x,rect.y+loc.y,Temp->img->width,Temp->img->height);
-				//coo.rect = cvRect(loc.x,loc.y,(*it)->img->width,(*it)->img->height);
-				if (loc.x !=0 || loc.y != 0){
-					this->rect.height = coo.rect.height;
-					this->rect.width = coo.rect.width;
-					this->rect.x = coo.rect.x;
-					this->rect.y = coo.rect.y;
-				}
-				
-				cvSetImageROI(src, rect);
-				IplImage * temple=cvCreateImage(cvSize(Temp->img->width,Temp->img->height),src->depth,src->nChannels);
-				cvCopy(src,temple);
-				cvResetImageROI(src); 
-				TempleImg* newTemple = new TempleImg(temple,n,1);
+		**/
+		val = inSameOneT(dst, (*it)->img,&l);
+		if (val < MaxVal) {
+			continue;
+		}
+		if (val>max){
+			Temp = (*it);
+			max = val;
+			//Temp->order = val;
+			loc.x = rect.x+l.x;
+			loc.y = rect.y+l.y;					 
+		}
+	}
+	cvReleaseImage(&dst);
+	if (Temp != NULL){
+		n = Temp->Tag;
+		CvRect r= cvRect(loc.x, loc.y,Temp->img->width,Temp->img->height);
+		Coordinate coo(new TempleImg(src, r,n ),r);
+		if (this->Coll==1){
+			if (CollPath == NULL){
 				char defPath[1024]={0};
 				GetTemplePath(defPath);
-				newTemple->SaveTemple(defPath);
-
-				_TempleList.push_back(newTemple);
-
-				this->Coord.push_back(coo);
-				//Temp->order++;
-				sort(_TempleList.begin(),_TempleList.end(),compTempleImgOrder);	
+				CollPath = new char [1024];
+				sprintf(CollPath,"coll\\%s\0",defPath);
 			}
+			coo.te->SaveTemple(CollPath);
 		}
-		//printf("order %d %d\r\n",_TempleList.front()->order,_TempleList.size());
-	}else{
-		if (!this->Child.empty()){
-			for (vector<Block*>::iterator it = Child.begin(); it != Child.end(); it ++) {
-				n = (*it)->FindOne(src);
-				//(*it)->ShowRectImg(src);
-				if (n!= -1) return n;
+		_TempleList.push_back(coo.te);
+		//_TempleList.push_back(coo.te);
+		this->Coord.push_back(coo);
+		return n;
+	}
+	if (n == -1){
+		if (Nothing != NULL) delete Nothing;
+		Nothing = new TempleImg(src, rect,n );
+	}
+	return n;
+}
+bool Block::ClickFindOne(IplImage * src,int tag){
+	/**
+	//Child.rbegin();
+	vector<int>::reverse_iterator r_iter;  
+for (r_iter = vec.rbegin(); // binds r_iter to last element  
+      r_iter != vec.rend(); // rend refers 1 before 1st element  
+      ++r_iter) // decrements iterator one element  
+    cout << *r_iter << endl; // prints 9,8,7,...0  
+	**/
+
+	//for (vector<Coordinate>::iterator it = Coord.end(); it !=  Coord.begin(); it --){
+	//printf("ClickFindOne begin %d\r\n",tag);
+	for (vector<Coordinate>::reverse_iterator it = Coord.rbegin(); it != Coord.rend(); ++ it ){
+		
+		if ( (*it).te->Tag != tag ) continue;
+		//printf("Click %d %d\r\n",(*it).te->Tag ,tag);
+		if (compImg(src, (*it).te->img,(*it).rect)){
+			//if (!Coord.empty())(*it).order = Coord.back().order+1;
+			Coordinate c = (*it);
+			if (Coord.size()>1){
+
+				//swap((*it),Coord.back());
+				 
+				//Coord.push_back(c);				
+				(*it).order = Coord.back().order+1;
+				sort(Coord.begin(),Coord.end(),compCoordinateOrder);
 			}
+			c.MouseClick(1);
+			//printf("click 0\r\n");
+			return true;
 		}
 	}
-	//cvResetImageROI(src); 
-	//cvReleaseImage(&dst);
-	return n;
+	if (!this->Child.empty()){
+		//this->ClearCoord();
+		for (vector<Block*>::iterator it = Child.begin(); it != Child.end(); it ++) {
+			if ((*it)->ClickFindOne(src,tag)){
+				//printf("click 1\r\n");
+				//this->Coord.push_back((*it)->Coord.back());
+				return true;
+			}
+		}
+		//return n;
+	}
+	//Coordinate coo;
+	
+	vector <TempleImg*> _TempleList = GetTempleList();
+	if (_TempleList.empty())return NULL;
+	TempleImg* Temp =NULL;
+
+	for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
+		if ((*it)->Tag == tag){
+			Temp=(*it);
+			break;
+		}
+	}
+	if (Temp == NULL) return false;
+
+
+	CvPoint loc;
+	cvSetImageROI(src, rect);
+	IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
+	cvCopy(src,dst);
+	cvResetImageROI(src); 
+
+	double val = inSameOneT(dst, Temp->img,&loc);
+	cvReleaseImage(&dst);
+	if (val > MaxVal) {
+		loc.x += rect.x;
+		loc.y += rect.y;
+		Coordinate coo(Temp,cvRect(loc.x,loc.y,Temp->img->width,Temp->img->height));
+		//if (!this->Coord.empty())coo.order = Coord.front().order+1;
+		this->Coord.push_back(coo);
+		//printf("click 2\r\n");
+		coo.MouseClick(1);
+		//if (Coord.size()>1)sort(Coord.begin(),Coord.end(),compCoordinateOrder);
+		return true;
+	}
+	return false;
+}
+bool Block::MergeWithCoordinate(Coordinate coor){
+	int MaxX1 = this->rect.x + this->rect.width;
+	int MaxY1 = this->rect.y + this->rect.height;
+	int MaxX2 = coor.rect.x + coor.rect.width;
+	int MaxY2 = coor.rect.y + coor.rect.height;
+
+	if (coor.rect.x > MaxX1 ||  this->rect.x > MaxX2 || coor.rect.y > MaxY1 ||  this->rect.y > MaxY2 ) return false;
+	//return true;
+	
+	this->rect.x = this->rect.x < coor.rect.x ? this->rect.x : coor.rect.x;
+	this->rect.y = this->rect.y < coor.rect.y ? this->rect.y : coor.rect.y;
+	this->rect.width = MaxX1 > MaxX2 ? MaxX1 - this->rect.x  : MaxX2 - this->rect.x;
+	this->rect.height =  MaxY1 > MaxY2 ?  MaxY1 - this->rect.y  : MaxY2 - this->rect.y;
+	this->Coord.push_back(coor);
+
+	vector <TempleImg*> _TempleList = GetTempleList();
+	//_TempleList.insert(_TempleList.end(),bl->TempleList.begin(),bl->TempleList.end());
+	//if (!_TempleList.empty()){
+	_TempleList.push_back(coor.te);
+	//}
+	return true;
+}
+bool Block::Merge(Block *bl){
+	//bool check = false;
+	int MaxX1 = this->rect.x + this->rect.width;
+	int MaxY1 = this->rect.y + this->rect.height;
+	int MaxX2 = bl->rect.x + bl->rect.width;
+	int MaxY2 = bl->rect.y + bl->rect.height;
+
+	if (bl->rect.x > MaxX1 ||  this->rect.x > MaxX2 || bl->rect.y > MaxY1 ||  this->rect.y > MaxY2 ) return false;
+	
+	this->rect.x = this->rect.x < bl->rect.x ? this->rect.x : bl->rect.x;
+	this->rect.y = this->rect.y < bl->rect.y ? this->rect.y : bl->rect.y;
+	this->rect.width = MaxX1 > MaxX2 ? MaxX1 - this->rect.x  : MaxX2 - this->rect.x;
+	this->rect.height =  MaxY1 > MaxY2 ?  MaxY1 - this->rect.y  : MaxY2 - this->rect.y;
+
+	
+	if (!bl->TempleList.empty()){
+		vector <TempleImg*> _TempleList = GetTempleList();
+		_TempleList.insert(_TempleList.end(),bl->TempleList.begin(),bl->TempleList.end());
+		bl->TempleList.clear();
+	}
+	if (!bl->Coord.empty()){
+		this->Coord.insert(this->Coord.end(),bl->Coord.begin(),bl->Coord.end());
+		bl->Coord.clear();
+	}
+	return true;
 
 }
+
+char* Block::FindArr(IplImage * src,int & size){
+	this->ClearCoord();
+	int n = -1,count=0;
+	int chileLen = Child.size();
+	if (size>chileLen)chileLen = size;
+	char* val = new char[ chileLen];
+
+	for (vector<Block *>::reverse_iterator it = Child.rbegin(); it != Child.rend(); ++ it ){
+	//for (vector<Block *>::iterator it = Child.begin(); it != Child.end(); it ++) {
+		n = (*it)->FindOne(src);
+		if (n != -1){
+			this->Coord.push_back((*it)->Coord.back());
+			val[count] = n;
+			count ++ ;
+			if (count == size){
+				return val;
+			}
+			(*it)->Fill(src);
+		}
+	}
+	int len = size - count;	
+	if (len>0){
+		CvPoint loc;		
+		IplImage * dst=cvCreateImage(cvSize(rect.width,rect.height),src->depth,src->nChannels);
+		//cvCopy(src,dst);
+		double k;
+		vector <Block *> TmpBl;	
+		//TmpBl.reserve(size);
+		bool isAdd;
+
+		vector <TempleImg*> _TempleList = GetTempleList();
+		for (vector<TempleImg*>::iterator it = _TempleList.begin(); it != _TempleList.end(); it ++) {
+
+			cvSetImageROI(src, rect);
+			cvCopy(src,dst);	
+			cvResetImageROI(src); 
+			while(true){
+				k = inSameOneT(dst, (*it)->img,&loc);
+				if (k < MaxVal)break;
+				//printf("find %d %f\r\n",(*it)->Tag,k);
+				CvRect r = cvRect(loc.x+rect.x,loc.y+rect.y, (*it)->img->width, (*it)->img->height);
+				Coordinate coo(new TempleImg(src, r,(*it)->Tag ),r,k);
+				isAdd = false;
+				for (vector<Block *>::iterator _it = TmpBl.begin(); _it != TmpBl.end(); _it ++) {
+					if ((*_it)->MergeWithCoordinate(coo)){
+						isAdd = true;
+						break;
+					}
+				}
+				if (!isAdd){
+					Block * bl = new Block(coo.rect,NULL);
+					if (!bl->MergeWithCoordinate(coo)){
+						printf("add err bl merge coor................");
+						exit(0);
+					}
+					//printf("add new tmpbl\r\n");
+					TmpBl.push_back(bl);
+				}
+				//printf("find ok\r\n");
+				coo.Fill(dst,this->rect);
+			}
+		}		
+		cvReleaseImage(&dst);
+		for (vector<Block *>::iterator it = TmpBl.begin(); it != TmpBl.end(); it ++) {
+
+			sort((*it)->Coord.begin(),(*it)->Coord.end(),compCoordinateOrder);
+			Coordinate Coor = (*it)->Coord.back();
+
+			vector <TempleImg*> _T = (*it)->GetTempleList();
+			for (vector<TempleImg*>::iterator _t = _T.begin(); _t != _T.end(); _t ++) {
+				if ((*_t) == Coor.te){
+					_T.erase(_t);
+					break;
+				}
+			}
+			//(*it)->Coord.pop_back();
+			//printf("coor %d\r\n",Coor.te->Tag);
+
+			if (this->Coll==1){
+				if (CollPath == NULL){
+					char defPath[1024]={0};
+					GetTemplePath(defPath);
+					CollPath = new char [1024];
+					sprintf(CollPath,"coll\\%s\0",defPath);
+				}
+				Coor.te->SaveTemple(CollPath);
+			}
+
+			this->Coord.push_back(Coor);
+			val[count] = Coor.te->Tag;
+			count++;
+
+			isAdd = false;
+			for (vector<Block *>::iterator _it = Child.begin(); _it != Child.end(); _it ++) {
+				if ( (*_it)->MergeWithCoordinate(Coor) ){				 
+					isAdd = true;
+					break;
+				}
+			}
+			if (!isAdd){
+				Block * bl = new Block((*it)->rect,this);		
+				if (!bl->MergeWithCoordinate(Coor)){
+					printf("add err bl merge coor 1................");
+					exit(0);
+				}
+				this->Child.push_back(bl);		
+			}
+			delete (*it);		
+		}
+		TmpBl.clear();
+		sort(this->Child.begin(),this->Child.end(),compBlockX);
+	}
+	//for (int i=count;i<chileLen;i++){
+	//	val[i] = -1;
+	//}
+	size= count;
+	return val;
+}
+
 int Block::FindArr(IplImage * src,bool isUpdate){
 	this->ClearCoord();
 	int count=0;
@@ -441,17 +798,22 @@ int Block::FindArr(IplImage * src,bool isUpdate){
 	}else{		
 		//IplImage * dst = cvCreateImage(cvSize(src->width,src->height),src->depth,src->nChannels);
 		//cvCopy(src,dst);
+
+
 		while(true){
 			Block * bl = new Block(this->rect,this);
 			_n = bl->FindOne(src);
 			if (_n == -1){
-				this->Child.pop_back();
+				//this->Child.pop_back();
 				delete bl;
 				break;
 			}
+			this->Child.push_back(bl);
+			Coordinate Coor = bl->Coord.back();
+			bl->rect = Coor.rect;
 			bl->Fill(src);
-			bl->TempleList.push_back(bl->Coord.back().te);
-			this->Coord.push_back(bl->Coord.front());
+			bl->TempleList.push_back(Coor.te);
+			this->Coord.push_back(Coor);
 			count++;
 		}
 		sort(this->Child.begin(),this->Child.end(),compBlockX);
@@ -461,7 +823,7 @@ int Block::FindArr(IplImage * src,bool isUpdate){
 	return count;
 }
 void Block::Fill(IplImage * src){
-	rect = this->Coord.front().rect;
+	//rect = this->Coord.front().rect;
 	int i,j;
 	int height = rect.y + rect.height;
 	int width = rect.x + rect.width;
@@ -474,16 +836,38 @@ void Block::Fill(IplImage * src){
 		}
 	}
 }
-bool Block::ClickCoordinate(int _v,int num){
+bool Block::ClickCoordinate(int _v,int num,bool isDel){
 	if (_v == -1){
-		Coordinate coor(NULL,this->rect);
-		return coor.MouseClick(_v,num);
+		if (this->Coord.empty()){
+			Coordinate coor(NULL,this->rect);		
+			coor.MouseClick(num);
+		}else{
+			this->Coord.back().MouseClick(num);
+		}
+		return true;
 	}		
 	for (vector<Coordinate>::iterator it = Coord.begin(); it != Coord.end(); it ++) {
-		if ((*it).MouseClick(_v,num) ){
-			Coord.erase(it);
+		if ((*it).Check(_v)){
+			(*it).MouseClick(num);
+			if (isDel){
+				Coord.erase(it);
+			}
 			return true;		
 		}
+	}
+	return false;
+}
+bool Block::ClickCoordinateCheck(int _v,int num,IplImage *Img){
+	
+	for (vector<Coordinate>::iterator it = Coord.begin(); it != Coord.end(); it ++) {
+		if (!(*it).Check(_v)) continue;
+
+		if (compImg(Img,(*it).te->img,(*it).rect)){
+			(*it).MouseClick(num);
+		}
+		Coord.erase(it);
+		return true;		
+		
 	}
 	return false;
 }
@@ -520,6 +904,8 @@ bool inSameOne(IplImage *img,CvRect rect ,IplImage * num,CvPoint *loc){
 	int h = rect.height - num->height;
 	int w = rect.width - num->width;
 	if (h == 0 && w == 0) {
+		loc->x = 0;
+		loc->y = 0;
 		return compImg(img,num,rect);
 	}
 	if(h<0 || w < 0){
@@ -572,17 +958,12 @@ bool inSameOne(IplImage *img,CvRect rect ,IplImage * num,CvPoint *loc){
 
 double inSameOneT(IplImage *img ,IplImage * num,CvPoint *loc){
 
-	int w = img->width - num->width + 1;
-	
-	int h = img->height - num->height + 1;
-
-	 
+	int w = img->width - num->width + 1;	
+	int h = img->height - num->height + 1;	 
 	if (w<1 && h<1) {
 		return inSameOneT(num,img,loc);
-	}else if (w<1 || h<1)return 0;
-	 
+	}else if (w<1 || h<1)return 0;	 
 	//if (w<1 || h<1)return 0;
-
 	IplImage* imgResult = cvCreateImage(cvSize(w,h),IPL_DEPTH_32F,1); 
 	//printf("v2>%d %d\r\n",img->depth,num->depth);
 	cvMatchTemplate(img,num,imgResult,CV_TM_CCOEFF_NORMED); 	 
@@ -596,3 +977,61 @@ double inSameOneT(IplImage *img ,IplImage * num,CvPoint *loc){
 	return max_val;
 
 }
+/**
+void inSameT(IplImage * img ,TempleImg * NI,int* Arr,CvPoint *loc,int & N){
+		//CvSize sizeResult = cvSize(img->width - NI->img->width + 1,img->height - NI->img->height + 1);   
+	IplImage* imgResult = cvCreateImage(cvSize(img->width - NI->img->width + 1,img->height - NI->img->height + 1),IPL_DEPTH_32F,1);   
+	cvMatchTemplate(img,NI->img,imgResult,CV_TM_CCOEFF_NORMED); 
+	 
+    double max_val,min_val;  
+	CvPoint minLoc;
+
+	cvMinMaxLoc(imgResult, &min_val, &max_val, &minLoc, &loc[N], NULL);  
+	while (max_val >0.8){
+		Arr[N]=NI->Tag;
+		//printf("%d %d %d %d\r\n",N,NI->num,loc[N].x,loc[N].y);
+		//loc[N] = max_loc;
+		N++;
+		if (N==14)break;
+		//CvPoint next_loc;
+		max_val = getNextMaxLoc(imgResult , NI->img->width,NI->img->height,min_val , loc,N);
+		//N++;
+		
+	}
+	cvReleaseImage(&imgResult);
+
+}
+double getNextMaxLoc(IplImage* result , int templatWidth,int templatHeight,double minValIn , CvPoint *lastLoc,int  n)
+{
+	int startX = lastLoc[n-1].x ;  
+    int startY = lastLoc[n-1].y ;  
+    int endX = lastLoc[n-1].x + templatWidth;  
+    int endY = lastLoc[n-1].y + templatHeight;  
+    if(startX < 0 || startY < 0)  
+    {  
+        startX = 0;  
+        startY = 0;  
+    }  
+    if(endX > result->width - 1 || endY > result->height - 1)  
+    {  
+        endX = result->width - 1;  
+        endY = result->height - 1;  
+    }  
+    int y, x;  
+    for(y = startY; y < endY; y++)  
+    {  
+        for(x = startX; x < endX; x++)  
+        {  
+            cvSetReal2D(result, y, x, minValIn);  
+        }  
+    }  
+	//n++;
+	 
+
+         double minVal,maxVal;
+        CvPoint minLoc;        //查找result中的最小值 及其所在坐标
+        cvMinMaxLoc(result,&minVal,&maxVal,&minLoc,&lastLoc[n],NULL);
+        return maxVal; 
+} 
+
+**/

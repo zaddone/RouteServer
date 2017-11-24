@@ -1,12 +1,14 @@
 #include "stdafx.h"
-#include "SendBuffer.h"
+#include "SendBufferBit.h"
 
 
-SendDB::SendDB(CallBackFun _call,LPVOID _lp,char * _data,bool * w){
+SendDB::SendDB(char * _data,int len, bool * w,CallBackFun _call,LPVOID _lp){
 	this->lp = _lp;
-	this->data = _data;
+	this->sendBuf = _data;
+	this->sendLen = len;
 	this->call = _call;
 	this->Wait = w;
+	this->recvLen = 0;
 	this->recvBuf = NULL;
 }
 SendDB::~SendDB(){
@@ -14,13 +16,13 @@ SendDB::~SendDB(){
 		this->Wait[0] = false;
 	}
 	//printf("delete %s\r\n",data);
-	if (data!= NULL) delete [] this->data;
+	if (sendBuf!= NULL) delete [] sendBuf;
 	if (recvBuf!= NULL)	delete [] recvBuf;
 	
 }
 void syncWork(LPVOID lpParamter){
 	SendDB * s = (SendDB *) lpParamter;
-	if (s->call != NULL)	s->call(s->lp,s->recvBuf);
+	if (s->call != NULL)	s->call(s->lp,s->recvBuf+1,s->recvLen-1);
 	delete s;
 }
 SocketBuffer::SocketBuffer(const TCHAR * Base){
@@ -33,14 +35,16 @@ SocketBuffer::SocketBuffer(const TCHAR * Base){
 	port = GetPrivateProfileInt(_T("Server"),_T("port"),3333,Base);
 	HeartTime = GetPrivateProfileInt(_T("Server"),_T("heartTime"),100,Base);
 
-	//keyID = -1;
+	keyID = -1;
+	this->reloadSystem = NULL;
+	this->reloadSystemInfo = NULL;
 }
 SocketBuffer::SocketBuffer(char * _host,const int _port,const int heart,CallBackFun _reloadSystem,LPVOID _reloadSystemInfo){
 	//this->socketClient = new SocketClient(host,port);
 	this->HeartTime = heart;
 	this->host = _host;
 	this->port = _port;
-//	keyID = -1;
+	keyID = -1;
 	this->SetReloadSystem(_reloadSystem,_reloadSystemInfo);
 
 	start();
@@ -48,7 +52,7 @@ SocketBuffer::SocketBuffer(char * _host,const int _port,const int heart,CallBack
    	
 }
 void SocketBuffer::start(){
-	this->SetKey();
+	//this->SetKey();
 	this->clock_end = clock();
 	this->clock_begin = clock_end;
 
@@ -99,10 +103,11 @@ void SocketBuffer::syncSend(){
 			if (reloadSystem != NULL){
 				//LoadSendData(this,"-10",reloadSystem,reloadSystemInfo);
 				
-				char *Data = new char[1024];
-				this->GetSendDB("-10",Data);
+				char D[1] = {-1};
+				int len = 1;
+				char *Data = this->GetSendBit(D,len);
 				bool Wait = true;
-				SendDB * db = new SendDB(reloadSystem,reloadSystemInfo,Data,&Wait);
+				SendDB * db = new SendDB(Data,len,&Wait,reloadSystem,reloadSystemInfo);
 				//SendDB *sdb =new SendDB(_call, _lp,Data,&Wait);	
 				this->Sendlist.push_back(db);
 
@@ -112,9 +117,8 @@ void SocketBuffer::syncSend(){
 		Sleep(this->HeartTime);
 		//printf("%d %d\r\n",clock()-this->clock_end,timeOut);
 	}else{
-
 		SendDB * db = Sendlist.front();
-		sendData(db->data);
+		sendData(db->sendBuf,db->sendLen);
 		recvData(db);
 
 		Sendlist.erase(Sendlist.begin());
@@ -122,31 +126,35 @@ void SocketBuffer::syncSend(){
 		//delete db;
 	}
 }
-void SocketBuffer::sendData(const char * data){
-	printf("send %s\r\n",data);
-	try{
-		this->socketClient->SendBytes(data);
-	}catch (...) {
+void SocketBuffer::sendData(const char * data,const int len){
+	//printf("send %s\r\n",data);
+	 
+	int ret =	this->socketClient->SendBytes(data,len);
+	if (ret == SOCKET_ERROR)  {
 		//Sleep(this->HeartTime);
 		printf("send err,conn %s %d\r\n",host,port);
 		delete this->socketClient;
 		this->ConnServer();
-		this->sendData(data);
+		this->sendData(data,len);
 	}
 }
 void SocketBuffer::recvData(SendDB * db){
-	db->recvBuf = new char[1024];  
-	try{
-		this->socketClient->ReceiveBytes(db->recvBuf,1024);
-	}catch (...) {
+	db->recvBuf = new char[1024];	
+	db->recvLen = this->socketClient->ReceiveBytes(db->recvBuf,1024);		
+	if (db->recvLen == SOCKET_ERROR)  {
 		printf("recv err,conn %s %d\r\n",host,port);
 		delete this->socketClient;
 		this->ConnServer();
+		delete db;
 		return;
 	}
-
-	HANDLE hThread  = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)syncWork, db, 0, NULL);
-	CloseHandle(hThread);
+	updateKeyId(db);
+	if (db->call != NULL){
+		HANDLE hThread  = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)syncWork, db, 0, NULL);
+		CloseHandle(hThread);
+	}else{
+		delete db;
+	}
 	/**
 	WaitWait.push_back()
 	if (db->call!= NULL){
@@ -155,65 +163,36 @@ void SocketBuffer::recvData(SendDB * db){
 	**/
 
 }
-/**
-void LoadSendDataBit(LPVOID lpParamter,const char * data,CallBackFun _call,LPVOID _lp){
+
+void LoadSendData(LPVOID lpParamter,const char * data,int len,CallBackFun _call,LPVOID _lp){
 	if (lpParamter == NULL) return;
 	SocketBuffer * c = (SocketBuffer *) lpParamter; 
-	//char *Data = new char[1024];
-	char *Data = c->GetSendBit(data,Data);
-	bool Wait = true;
-	
-	SendDB *sdb =new SendDB(_call, _lp,Data,&Wait);	
+	char *Data = c->GetSendBit(data,len);
+	bool Wait = true;	
+	SendDB *sdb =new SendDB(Data,len,&Wait,_call, _lp);	
 	if (_call!=NULL){
 		c->clock_end = clock();
-		printf("change clock end %d\r\n",c->clock_end);
-		
 	}
 	c->Sendlist.push_back(sdb);
+	//if (_call!=NULL){
 	while(Wait){
-		//printf("wait %s\r\n",Data);
 		Sleep(c->HeartTime);
 	}
+	//}
 }
-**/
-void LoadSendData(LPVOID lpParamter,const char * data,CallBackFun _call,LPVOID _lp){
-	if (lpParamter == NULL) return;
-	SocketBuffer * c = (SocketBuffer *) lpParamter; 
-	char *Data = new char[1024];
-	c->GetSendDB(data,Data);
-	bool Wait = true;
-	
-	SendDB *sdb =new SendDB(_call, _lp,Data,&Wait);	
-	if (_call!=NULL){
-		c->clock_end = clock();
-		printf("change clock end %d\r\n",c->clock_end);
-		
-	}
-	c->Sendlist.push_back(sdb);
-	while(Wait){
-		//printf("wait %s\r\n",Data);
-		Sleep(c->HeartTime);
+void SocketBuffer::updateKeyId(SendDB * db){
+	if (db->recvLen>0){
+		if (db->recvBuf[0] != this->keyID) this->keyID = db->recvBuf[0];
+		//db->recvLen--;
+		//db->recvBuf++;
 	}
 }
-/**
 char * SocketBuffer::GetSendBit(const char * data,int & len){
-	int nlen = len+2;
+	int nlen = len+1;
 	char * out = new char[nlen];
-	out[0]=0;
-	out[1]=this->keyID;
-	memcpy(out+2,data,len);
+	//out[0]=0;
+	out[0]=this->keyID;
+	memcpy(out+1,data,len);
 	len = nlen;
 	return out;
-}
-**/
-void SocketBuffer::GetSendDB(const char * data,char * outData){
-
-	sprintf(outData,"%s %s\0",this->Key,data);
-}
-void SocketBuffer::SetKey(){
-	srand((unsigned)time(NULL));
-	for (int i=0;i<5;i++){
-		Key[i] = rander[random(63)];
-	}
-	Key[5]='\0';
 }

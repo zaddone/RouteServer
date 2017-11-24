@@ -12,7 +12,8 @@ public:
 	void SaveTemple(char  *filePath);
 	int Tag;
 	int order;
+	void ShowImg();
 };
 bool compTempleImgOrder(TempleImg *a,TempleImg *b);
-int CreatDir(char *pDir);
+
 #endif

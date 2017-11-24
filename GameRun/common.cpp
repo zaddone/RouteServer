@@ -3,6 +3,43 @@
 
 
 
+int CreatDir(char *pDir){  
+    int i = 0;  
+    int iRet;  
+    int iLen;  
+    char* pszDir;  
+  
+    if(NULL == pDir)  
+    {  
+        return 0;  
+    }  
+      
+    pszDir = _strdup(pDir);  
+    iLen = int(strlen(pszDir));  
+    for (i = 0;i < iLen;i ++)  
+    {  
+        if (pszDir[i] == '\\' || pszDir[i] == '/')  
+        {   
+            pszDir[i] = '\0';   
+            iRet = ACCESS(pszDir,0);  
+            if (iRet != 0)  
+            {  
+                iRet = MKDIR(pszDir);  
+                if (iRet != 0)  
+                {  
+                    return -1;  
+                }   
+            }
+            pszDir[i] = '/';  
+        }   
+    }  
+  
+    iRet = MKDIR(pszDir);  
+    //free(pszDir);  
+	delete []pszDir;
+    return iRet;  
+}
+
 BOOL FindEnumProcess(HandleFUNC F,LPVOID lpParamter )
 {
 	DWORD arrProIds[1024], ByteCnt, ProCnt;

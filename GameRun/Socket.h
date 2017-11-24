@@ -54,6 +54,7 @@ public:
   // (in contrast to SendLine).
   void   SendBytes(const std::string&);
   void	SendBytes(const char *s);
+  int SendBytes(const char *s,const int len) ;
 protected:
   friend class SocketServer;
   friend class SocketSelect;
@@ -73,7 +74,7 @@ private:
 
 class SocketClient : public Socket {
 public:
-  SocketClient(const std::string& host, int port);
+  SocketClient(const std::string& host, int port ,int iTimeOut = 15000);
 };
 
 class SocketServer : public Socket {

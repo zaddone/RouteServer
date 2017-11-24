@@ -1,41 +1,67 @@
 #include "stdafx.h"
 #include "readNumber.h"
-#ifdef _WIN32  
-#include <direct.h>  
-#include <io.h>  
-#define ACCESS _access  
-#define MKDIR(a) _mkdir((a))  
-#elif _LINUX  
-#include <stdarg.h>  
-#include <sys/stat.h>  
-#define ACCESS access  
-#define MKDIR(a) mkdir((a),0755)  
-#endif  
-
+#include "common.h"
 #include <vector>
 using namespace std;
 bool compRectNum(CvRect a,CvRect b)
 {
 	return a.x<b.x;
 }
+void SaveTempleName(char  *filePath,char * name,IplImage *img){	
+	char file[1024] = {0};		
+	CreatDir(filePath);
+	clock_t begin = clock();
+	sprintf(file,"%s\\%s_%d.bmp\0",filePath,name,begin);
+	//printf("%s\r\n",file);
+	int result;
+	struct _stat st;
+	result = _stat(file, &st);
+	while(result==0){
+		begin++;
+		sprintf(file,"%s\\%s_%d.bmp\0",filePath,name,begin);
+		result = _stat(file, &st);				
+	}
+	int r = cvSaveImage(file,img);
+	printf("%s %d\r\n",file,r);
+}
+void SaveTemple(char  *filePath,IplImage *img){	
+	char file[1024] = {0};		
+	CreatDir(filePath);
+	clock_t begin = clock();
+	sprintf(file,"%s\\%d.bmp\0",filePath,begin);
+	int result;
+	struct _stat st;
+	result = _stat(file, &st);
+	while(result==0){
+		begin++;
+		sprintf(file,"%s\\%d.bmp\0",filePath,begin);
+		result = _stat(file, &st);				
+	}
+	cvSaveImage(file,img);
+}
+
 Number::Number(int i,char *path,IplImage * temp){
 	this->Num = i;
 	this->temple = temp;
-	this->TPath = path;
+
+	this->TPath = new char[1024];
+	strcpy(TPath,path);
+	//sprintf(TPath,"coll\\%s",TemplePath);
+	//this->TPath = path;
 }
 Number::~Number(){
 	if (this->temple!= NULL){
 		SaveImg();
 		cvReleaseImage(&temple);
 	}
+	if (TPath != NULL) delete [] TPath;
 }
 void Number::SaveImg(){
 	
+	if (TPath == NULL)return;
 	char file[100]={0};
 		//char file[100]="templebak";
-	if (-1 == _access(this->TPath,0)){
-		_mkdir(this->TPath);
-	}
+	CreatDir(TPath);
 	sprintf(file,"%s\\%d.bmp",this->TPath,this->Num);
 	if (!cvSaveImage(file,temple))printf("%s save Err\r\n",file);
 
@@ -128,12 +154,65 @@ NumberList::~NumberList(){
 			delete Nums[i];
 		}
 	}
+	delete [] templebak;
 }
+NumberList::NumberList(char * TemplePath,int coll,int sep){
+//Number ** Nums = new (Number**)[10]; 
+	
+	this->templebak = NULL;
+	int i;
+	Sep=sep;
+	if (TemplePath != NULL){
+		for (i=0;i<10;i++){		 
+			Nums[i] = new Number(i,TemplePath);
+		}
 
+		if (coll!=0){
+			this->templebak = new char[1024];
+			sprintf(templebak,"coll\\%s",TemplePath);
+			//this->templebak = bak;
+		}
+
+	}
+	if (TemplePath== NULL) return;
+	struct _finddata_t fd;
+	char searchPath[100];
+	char path[100];
+	char Num[10]={0};
+	char * pch;
+	if (-1 == _access(TemplePath,0)){
+		_mkdir(TemplePath);
+	}
+	sprintf(searchPath,"%s\\*.bmp",TemplePath);
+	size_t nlen =0;
+	intptr_t handle = _findfirst(searchPath, &fd);
+	if (handle != -1) {
+		do   {
+			sprintf(path,"%s\\%s",TemplePath,fd.name);
+			IplImage * img = cvLoadImage(path,CV_LOAD_IMAGE_ANYDEPTH);
+			
+			if (img==NULL)continue;
+				
+			pch = strchr(fd.name,'.');
+			if (pch == NULL) nlen = 1;
+			else	nlen = pch-fd.name;
+			memcpy(Num,fd.name,nlen);
+			Num[nlen] = 0;
+			this->SetNums(atoi(Num),img);
+			//i = atoi(Num);
+			//Nums[i]->temple = img ;
+
+		}  while (_findnext(handle, &fd)==0);
+		_findclose(handle);
+	}
+}
 NumberList::NumberList(char * TemplePath,char * bak,int sep){
 	
 	//Number ** Nums = new (Number**)[10]; 
-	this->templebak = bak;
+	if (bak!= NULL){
+		this->templebak = new char[1024];
+		strcpy(this->templebak , bak);
+	}
 	int i;
 	Sep=sep;
 	if (TemplePath != NULL){
@@ -179,7 +258,9 @@ void NumberList::SetNums(int i,IplImage * src){
 }
 void NumberList::ReadDirImg(const char * path ){
 	struct _finddata_t fd;
-	char searchPath[100];
+	char searchPath[1024];
+	char FilePath[1024];
+	if (path== NULL)path = this->templebak;
 	sprintf(searchPath,"%s\\*",path);
 	size_t nlen =0;
 	intptr_t handle = _findfirst(searchPath, &fd);
@@ -190,18 +271,19 @@ void NumberList::ReadDirImg(const char * path ){
 				//这个语句很重要
 				if( (strcmp(fd.name,".") != 0 ) &&(strcmp(fd.name,"..") != 0))   
 				{	
-					sprintf(searchPath,"%s\\%s",path,fd.name);
-					this->ReadDirImg(searchPath );
+					sprintf(FilePath,"%s\\%s",path,fd.name);
+					this->ReadDirImg(FilePath );
 				}
 			}else{
-				sprintf(searchPath,"%s\\%s",path,fd.name);				
-				IplImage * img = cvLoadImage(searchPath,CV_LOAD_IMAGE_ANYDEPTH);
+				sprintf(FilePath,"%s\\%s",path,fd.name);				
+				IplImage * img = cvLoadImage(FilePath,CV_LOAD_IMAGE_ANYDEPTH);
 				if (img == NULL)continue;
 				//printf("%s %d %d\r\n",searchPath,img->depth,img->nChannels);
 				cvThreshold( img,img, this->Sep , 255, CV_THRESH_BINARY  );
 				this->TrainImg(img);
-				cvReleaseImage(&img);
 				//remove(searchPath);
+				cvReleaseImage(&img);
+				
 			}
 
 		}while (_findnext(handle, &fd)==0);
@@ -269,7 +351,7 @@ void NumberList::TrainImg(IplImage * img){
 		}
 	}
 	if (l == 1) return;
-	
+
 	int WindowsWidth =0,WindowsHeight=0;
 	for (i=0;i<l;i++){
 		WindowsWidth+=likeNum[i]->temple->width;
@@ -301,28 +383,46 @@ void NumberList::TrainImg(IplImage * img){
 	ValStr=cvWaitKey(0);
 	//i = atoi(ValStr);
 	printf("ValStr  %d\r\n",ValStr);
-	
+
+
+
 	if (ValStr>47 && ValStr<58){
 		this->Nums[ValStr-48]->Merge(img);
 	}else {
-		char file[100]={0};
-		if (-1 == _access(this->templebak,0)){
-			_mkdir(this->templebak);
+		if (ValStr==13){
+			int maxLen = 12;
+			char * key = new char[maxLen];
+			for (int i = 0;i<maxLen;i++){
+				ValStr = cvWaitKey(0);
+				printf("ValStr  %d\r\n",ValStr);
+				if (ValStr>47 && ValStr<58){
+					key[i]= ValStr;
+				}else{
+					break;
+				}
+			}
+
+			//SaveTemple(templebak,img);
+		//}else if (ValStr==32){			
 		}
-		sprintf(file,"%s\\%d.bmp",this->templebak,clock());		
-		if (!cvSaveImage(file,img))printf("%s save Err\r\n",file);
 	}
-	//cvWaitKey(0);
+
 	cvDestroyWindow("contour1");
 	cvReleaseImage(&WindowsImg);
-	//delete [] likeNum;
 }
 int NumberList::Know(IplImage * _src,int sep){
-	IplImage * src = cvCreateImage(cvSize(_src->width,_src->height), _src->depth,_src->nChannels);
-	if (this->Sep == NULL){
-		sep = 150;
+	/**
+	IplImage * src = NULL;
+	if (this->templebak == NULL ){
+		src= _src;
+	}else{
+		src = cvCreateImage(cvSize(_src->width,_src->height), _src->depth,_src->nChannels);
+		
 	}
-	cvThreshold( _src,src,sep , 255, CV_THRESH_BINARY  );
+	**/
+	IplImage *src = cvCreateImage(cvSize(_src->width,_src->height), _src->depth,_src->nChannels);
+	if (sep>0)this->Sep = sep;
+	cvThreshold( _src,src,Sep , 255, CV_THRESH_BINARY  );
 
 	vector <CvRect> templeRect;
 	CvSeq* contours = NULL;
@@ -338,34 +438,46 @@ int NumberList::Know(IplImage * _src,int sep){
 	Number ** likeNum = new Number*[10] ;
 	int l = 0,x;
 	for (vector<CvRect>::iterator it = templeRect.begin(); it != templeRect.end(); it ++) {
-			cvSetImageROI(src, (*it));
-			IplImage * dst=cvCreateImage(cvSize((*it).width,(*it).height),src->depth,src->nChannels);
-			cvCopy(src,dst);
-			cvResetImageROI(src);
+		cvSetImageROI(src, (*it));
+		IplImage * dst=cvCreateImage(cvSize((*it).width,(*it).height),src->depth,src->nChannels);
+		cvCopy(src,dst);
+		cvResetImageROI(src);
 
-			Number *n = this->CheckImg(dst);
-			if (n == NULL){			
-				x = this->splitTemple(likeNum,l,dst);
-				if (dst->width != x){
-					if (this->templebak != NULL ){
-						char file[100]={0};
-						if (-1 == _access(this->templebak,0)){
-							_mkdir(this->templebak);
-						}
-						sprintf(file,"%s\\%s_%d.bmp",this->templebak,clock());		
-						if (!cvSaveImage(file,dst))printf("%s save Err\r\n",file);
-					}
-					cvReleaseImage(&dst);
-					return 0;
+		Number *n = this->CheckImg(dst);
+		if (n == NULL){			
+			x = this->splitTemple(likeNum,l,dst);
+			if (dst->width != x){					
+				if (this->templebak != NULL ){
+					CvRect r =  cvRect((*it).x+x,(*it).y,(*it).width-x,(*it).height);
+					IplImage * dst1=cvCreateImage(cvSize(r.width,r.height),src->depth,src->nChannels);
+					cvSetImageROI(_src, r);
+					cvCopy(_src,dst1);
+					cvResetImageROI(_src);
+					/**
+					cvSetImageROI(_src, (*it));
+					IplImage * dst1=cvCreateImage(cvSize((*it).width,(*it).height),src->depth,src->nChannels);
+					cvCopy(src,dst1);
+					cvResetImageROI(_src);
+					**/
+					SaveTemple(templebak,dst1);
+					cvReleaseImage(&dst1);
 				}
-			}else{
-				likeNum[l] = n;
-				l++;
+					
+				//return 0;
 			}
+		}else{
+			likeNum[l] = n;
+			l++;
+		}
 
-			cvReleaseImage(&dst);
+		cvReleaseImage(&dst);
 
 	}
+	cvReleaseMemStorage(&storage);
+
+	//if (this->templebak != NULL )	cvReleaseImage(&src);
+	cvReleaseImage(&src);
+
 	int _Num=0;
 	for (int i = 0;i<l;i++){
 		_Num*=10;
@@ -392,10 +504,10 @@ void NumberList::ReadListImg(){
 			IplImage * img = cvLoadImage(path,CV_LOAD_IMAGE_ANYDEPTH);			
 			if (img==NULL)continue;
 			//bool isFind;
-			
+			cvThreshold( img,img,Sep , 255, CV_THRESH_BINARY  );
 			int l=0,x=0;
 			x = this->splitTemple(likeNum,l,img);
-			 
+			
 			int wid_x = img->width - x;
 			printf("%d %d\r\n",img->width ,x);
 			/**
@@ -408,21 +520,27 @@ void NumberList::ReadListImg(){
 				cvReleaseImage(&Remainder);
 			}else{	
 			**/
+			if (wid_x > 0){
 				IplImage * WindowsImg = ShowNumsListImg(likeNum,l,img,x);			 
 				cvNamedWindow("contour1");
 				cvShowImage("contour1", WindowsImg);
 				//char ValStr[1] = {0};
 				char ValStr  = (char)cvWaitKey(0);
-				cvDestroyWindow("contour1");
-				if (ValStr==13){
-					//if (img->width>x){
-						//IplImage * Remainder = cvCreateImage(cvSize(img->width-x,img->height), img->depth,img->nChannels);
-					//}else{
+				
+			//	if (ValStr>47 && ValStr<58){
+
+
+			//		this->Nums[ValStr-48]->Merge(img);
+			//	}else {
+					if ( ValStr==13  ){
 						remove(path);
-				//	}
-				}
+					}
+			//	}
+
+				cvDestroyWindow("contour1");
+				 
 				cvReleaseImage(&WindowsImg);
-			 
+			}
 		//	}
 			cvReleaseImage(&img);
 			
@@ -499,7 +617,8 @@ int NumberList::splitTemple(Number ** likeNum,int & Len,IplImage * src ){
 	bool isFind;
 	while(true){
 		isFind = false;
-		for (int i=0;i<10;i++){					
+		for (int i=0;i<10;i++){		
+			if (this->Nums[i]->temple == NULL) continue;
 			splitIplImage(src,this->Nums[i]->temple,x,isFind,0);	
 			if (isFind){
 				likeNum[Len] = this->Nums[i];
@@ -515,9 +634,8 @@ int NumberList::splitTemple(Number ** likeNum,int & Len,IplImage * src ){
 	return x;
 }
 void splitIplImage(IplImage * dst,const IplImage * src ,int &x,bool &isFind,int src_x){
-	if (src->height < dst->height) return;
-	int beginHeight = ( src->height - dst->height)/2;
-	
+	//if (src->height < dst->height) return;
+	//int beginHeight = ( src->height - dst->height)/2;	
 
 	int srcStep       = src->widthStep;
 	uchar * srcData    =  (uchar *) src->imageData;
@@ -525,18 +643,24 @@ void splitIplImage(IplImage * dst,const IplImage * src ,int &x,bool &isFind,int 
 	int dstStep       = dst->widthStep;
 	uchar * dstData    =  (uchar *) dst->imageData;
 
+
+	//CvRect r;// = cvRect();
 	int i,j,j1;
 	int src_x_2=src_x/2;
 	int src_x_1 = src_x%2 +src_x_2;
-	int endx = x + (src->width-src_x_1) ;
-	if (endx > dst->width)return;//endx = dst->width;
-	//int isV=0;
-	for(j=x,j1=src_x_2; j <  endx; j++,j1++){
-		for(i=0; i < dst->height; i++){
+	//r.width = (src->width-src_x_1);
+	int endx = x +  src->width - src_x_1;
+	if (endx > dst->width) endx = dst->width;
+
+	int isV=0;
+	int _i=0;
+	for(i=0,_i=0; i < dst->height; i++){
+		for(j=x,j1=src_x_2; j <  endx; j++,j1++){
+		
 			if (dstData[i*dstStep+j]>0){
-				//isV++;
+				isV++;
 				//printf("src i %d j %d\r\n",i+beginHeight,j1);
-				if (srcData[(i+beginHeight)*srcStep + (j1+src_x_2)] == 0 ){
+				if (srcData[_i*srcStep + (j1+src_x_2)] == 0 ){
 					src_x++;
 					if (src_x < src->width/3 ) {
 						splitIplImage(dst,src,x,isFind,src_x);
@@ -545,6 +669,14 @@ void splitIplImage(IplImage * dst,const IplImage * src ,int &x,bool &isFind,int 
 				}
 			}
 		}
+		if (isV > 0){
+			_i++;
+			if (_i >= src->height)break;
+		}
+	}
+	if (isV==0){
+		isFind = false;
+		return;
 	}
 	x=endx;
 	isFind = true;

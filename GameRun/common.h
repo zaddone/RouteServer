@@ -3,10 +3,17 @@
 
 #include <Windows.h>
 #include <psapi.h>
+#include <direct.h>  
+#include <io.h> 
+#include <sys/stat.h>  
+#define ACCESS _access  
+#define MKDIR(a) _mkdir((a))
+/**
+#include <vector>
+using namespace std;
+**/
 
-//#include <vector>
-//using namespace std;
-
+int CreatDir(char *pDir);
 
 
 typedef BOOL (HandleFUNC)(LPVOID lpParamter,HANDLE hProcess,TCHAR * ProName, DWORD h ); 

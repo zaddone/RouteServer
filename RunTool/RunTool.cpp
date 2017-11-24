@@ -23,7 +23,7 @@ int _tmain(int argc, _TCHAR* argv[]){
 	int listenPort= GetPrivateProfileInt(_T("listen"),_T("Listenport"),2000,IniFile);
 
 	TCHAR watch_pro[15];
-	GetPrivateProfileString(_T("Process"),_T("watch"),_T("run.exe"),watch_pro ,15,IniFile);
+	GetPrivateProfileString(_T("Process"),_T("watch"),_T("GameRun.exe"),watch_pro ,15,IniFile);
 
 	TCHAR filter_pro[50];
 	//char watch[50];
@@ -41,17 +41,17 @@ int _tmain(int argc, _TCHAR* argv[]){
 	printf("ret: %d\r\n",ret);
 	//Sleep(10000);
 	if (!FindEnumProcess(CheckProcessName,watch_pro)){
-		printf("open run.exe\r\n");
+		wprintf(L"open %s\r\n",watch_pro);
 		//ShellExecute(NULL,L"open",watch_pro,NULL,NULL, SW_HIDE ); 
-		ShellExecute(NULL,L"open",L"run.exe",NULL,NULL, SW_SHOW ); 
+		ShellExecute(NULL,L"open",watch_pro,NULL,NULL, SW_SHOW ); 
 	}
 	long heart = 1000*60;
 	while(true){
 		//clock_t finish = clock(); s		
 		Sleep(heart);
 		if (!FindEnumProcess(CheckProcessName,watch_pro)){
-			printf("open run.exe");
-			ShellExecute(NULL,L"open",L"run.exe",NULL,NULL, SW_SHOW ); 
+			wprintf(L"open %s\r\n",watch_pro);
+			ShellExecute(NULL,L"open",watch_pro,NULL,NULL, SW_SHOW ); 
 			//ShellExecute(NULL,L"open",watch_pro,NULL,NULL, SW_HIDE );
 		}
 		/**
