@@ -118,8 +118,8 @@ type Ai struct {
 	SumVal int
 	LastPublicId  int
 	LastForData [2][]byte
-	Blocks [3]*Block
-	BlocksMap map[int]*Block
+	Blocks [3]*NewBlock
+	BlocksMap map[int]*NewBlock
 	Room  int
 	BeginTime int64
 
@@ -182,7 +182,7 @@ func (self *Ai) Init() {
 	self.LastPublicId = -1
 //	self.BaseVal = 0
 	if self.BlocksMap == nil {
-		self.BlocksMap = make(map[int]*Block)
+		self.BlocksMap = make(map[int]*NewBlock)
 	}
 //	self.BlocksMap = make(map[int]*Block)
 //	self.Room = -1
@@ -208,14 +208,14 @@ func (self *Ai) InitNow(str []byte){
 	self.Public[3].SetNow(str)
 	for i,bl := range self.Blocks {
 		if bl == nil {
-			bl = new(Block)
+			bl = new(NewBlock)
 			bl.Init(self.Public[3].Now[i][:],i)
 			self.Blocks[i] = bl
 			self.BlocksMap[i] = bl
 		}else{
 			bl.Update()
 		}
-		SortBlock(self.Blocks[:],i)
+		SortNewBlock(self.Blocks[:],i)
 	}
 	if self.Public[3].Inv == -1 {
 		self.Public[3].Inv = self.GetDiscard()
@@ -291,17 +291,17 @@ func (self *Ai) SetPublicSee(nid int,n int){
 }
 func (self *Ai) GetDiscard() int{
 
-	if self.Blocks[0].Num != self.Blocks[1].Num {
+	if self.Blocks[0].SumLen != self.Blocks[1].SumLen {
 		return self.Blocks[0].I
 	}
-	if self.Blocks[0].Numi > self.Blocks[1].Numi {
+	if self.Blocks[0].SumWei > self.Blocks[1].SumWei {
 		return self.Blocks[0].I
-	}else if self.Blocks[0].Numi < self.Blocks[1].Numi {
+	}else if self.Blocks[0].SumWei < self.Blocks[1].SumWei {
 		return self.Blocks[1].I
 	}
-	if len(self.Blocks[0].Bl) > len(self.Blocks[1].Bl) {
+	if len(self.Blocks[0].Child) > len(self.Blocks[1].Child) {
 		return self.Blocks[0].I
-	}else if len(self.Blocks[0].Bl) < len(self.Blocks[1].Bl) {
+	}else if len(self.Blocks[0].Child) < len(self.Blocks[1].Child) {
 		return self.Blocks[1].I
 	}
 	return self.Blocks[0].I
@@ -363,8 +363,8 @@ func (self *Ai) CheckAllJiao(isf int) (gr *MJGrain) {
 		kn =1
 	}
 	for _,bl := range self.Blocks {
-		for _,b := range bl.Bl{
-			for _,j := range b {
+		for _,_b := range bl.Child{
+			for _,j := range _b.Bl {
 			//	n :=bl.No[j]
 			//	if  n>2 {
 			//		continue
@@ -413,21 +413,9 @@ func (self *Ai) CheckAllJiao(isf int) (gr *MJGrain) {
 func (self *Ai) EasyOuts() (gr *MJGrain) {
 	var grs []*MJGrain
 	for _,bl := range self.Blocks {
-		for _,b := range bl.Bl {
-			le :=0
-			for _,j:= range b{
-				le +=bl.No[j]
-			}
-			for _,j := range b {
-				g :=&MJGrain{H:bl.I,N:j,O:[]int{bl.No[j],le,0}}
-				if self.GetPublicNum(g,false) >0 {
-					g.O[2] = 1
-				}
-				grs = append(grs,g)
-			}
-		}
+		grs = append(grs,bl.GetMJGrainList(self)...)
 	}
-	gr = SortGrainArrs(grs,0,false,false,true)
+	gr = SortGrainArrs(grs,0,false,true,false,false)
 	return gr
 }
 func (self *Ai) Outs(isf int,No30 bool) (out int){
@@ -441,10 +429,10 @@ func (self *Ai) Outs(isf int,No30 bool) (out int){
 //		//	fmt.Println("self See",self.Public[3].Now,isf)
 //		}
 //	}()
-	if InvBl.Num >0 {
+	if InvBl.SumLen >0 {
 		G:
-		for _,bl := range InvBl.Bl {
-			for _,j := range bl {
+		for _,bl := range InvBl.Child {
+			for _,j := range bl.Bl {
 				gr = &MJGrain{H:InvBl.I,N:j}
 				out =  InvBl.I *9 + j
 				break G
@@ -471,14 +459,14 @@ func (self *Ai) Outs(isf int,No30 bool) (out int){
 			if bl == InvBl {
 				continue Gs
 			}
-			if bl.Num < 3 {
+			if bl.SumLen < 3 {
 				for _,n:= range self.Public[3].Down[bl.I]{
 					if n>0{
 						break Gs
 					}
 				}
-				for j,n:=range bl.No{
-					if n >0 {
+				for _,ch := range bl.Child{
+					for _,j := range ch.Bl{
 						fmt.Println("out 1 f")
 						return bl.I*9+j
 					}
@@ -488,19 +476,25 @@ func (self *Ai) Outs(isf int,No30 bool) (out int){
 	}
 	var grs []*MJGrain = nil
 	for _,bl := range self.Blocks {
-		if bl.Num ==0 {
+		if bl.SumLen ==0 {
 			continue
 		}
 		grs = append(grs,bl.RunFind(self)...)
 	}
 	if len(grs) > 0 {
-		gr = SortGrainArrs(grs,0,false,true,true,false,false)
-		str := ""
-		for _,g := range grs {
-			str = fmt.Sprintf("%s %d",str,g.H*9+g.N)
-		}
-		fmt.Println("out 2",str)
+		gr = SortGrainArrs(grs,0,false,true,false,false)
+	//	str := ""
+	//	for _,g := range grs {
+	//		str = fmt.Sprintf("%s %d",str,g.H*9+g.N)
+	//	}
+	//	fmt.Println("out 2",str)
 		fmt.Println("out 2")
+		if (isf>0) {
+			if self.Public[3].Now[gr.H][gr.N]>1 {
+				fmt.Println("out 3")
+				gr =self.EasyOuts()
+			}
+		}
 		return gr.H*9 +gr.N
 	}
 	gr =self.EasyOuts()
@@ -519,8 +513,8 @@ func (self *Ai) OutDiscard(num int) (o []byte){
 	}
 	bl := self.BlocksMap[self.Public[3].Inv]
 	G:
-	for _,bs := range bl.Bl{
-		for _,j:= range bs {
+	for _,bs := range bl.Child{
+		for _,j:= range bs.Bl {
 			n := self.Public[3].Now[bl.I][j]
 			for i:=0;i<n;i++{
 				self.Public[3].Now[bl.I][j]--
@@ -602,6 +596,10 @@ func (self *Ai) SeeOuts(v int,key []byte,isf int) byte {
 		//	}
 		//	continue
 		}else if k == 1 {
+			ns := self.Public[3].Now[i][j]
+			if ns <2 {
+				return k
+			}
 			gr1 := self.CheckJiao(isf,true)
 			if len(gr1) == 0 {
 			//	ns = 2
@@ -652,7 +650,7 @@ func (self *Ai) CheckJiao(isf int,isM bool) (gr []*MJGrain) {
 	I :=0
 	for _,bl := range self.Blocks{
 		if bl.I == self.Public[3].Inv {
-			if len(bl.Bl) > 0 {
+			if bl.SumLen > 0 {
 				return nil
 			}
 			continue
@@ -708,12 +706,12 @@ func (self *Ai) checkFull(Max bool) int {
 	f := 1
 	for _,bl := range self.Blocks {
 //		bl.Init(self.Public[3].Now[bl.I][0:],bl.I)
-		if bl.I == self.Public[3].Inv && len(bl.Bl) > 0 {
+		if bl.I == self.Public[3].Inv && bl.SumLen > 0 {
 			return 0
 		}
-		w += bl.GetWeight()
-		for _,b := range bl.Bl {
-			for _,j := range b {
+		w += bl.W
+		for _,b := range bl.Child {
+			for _,j := range b.Bl {
 				n :=bl.No[j]
 				if n == 2 {
 					dui ++
@@ -725,7 +723,7 @@ func (self *Ai) checkFull(Max bool) int {
 				}
 			}
 		}
-		if bl.Num >0 {
+		if bl.SumLen >0 {
 			qing++
 		}else{
 			for _,n := range self.Public[3].Down[bl.I] {

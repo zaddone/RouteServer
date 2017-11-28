@@ -26,8 +26,8 @@ func (self *Block) RunFind(a *Ai ) []*MJGrain {
 		g.O = append(g.O,a.GetPublicNum(g,false))
 		g.O = append(g.O,g.O[0])
 		g.O = append(g.O,0)
-		grs = append(grs,g)
 		g.O[0] = 0
+		grs = append(grs,g)
 	}
 	var No [9]int
 	copy(No[0:],self.No)
@@ -150,7 +150,7 @@ func (self *Block) Update() {
 	self.We = nil
 
 	var tmparr []int = nil
-
+	//TmpN:=0
 	for j,n := range self.No {
 		if n == 0 {
 			if (len(tmparr)>0){
@@ -160,6 +160,7 @@ func (self *Block) Update() {
 			continue
 		}
 		self.Num += n
+	//	TmpN++
 		self.Numi ++
 		tmparr = append(tmparr,j)
 	}
@@ -225,6 +226,7 @@ func (self *Block) SetWeight() {
 	}
 
 }
+
 func WeightVal(No [9]int,bl []int,w int,o []*MJGrain) (int,[]*MJGrain) {
 	le := len(bl)
 	if le == 0 {
@@ -291,7 +293,7 @@ func WeightVal(No [9]int,bl []int,w int,o []*MJGrain) (int,[]*MJGrain) {
 		isS := false
 		for _,_o2 := range o2 {
 			if _o1.N == _o2.N {
-				_o2.O[0]--
+			//	_o2.O[0]--
 				isS = true
 				break
 			}
@@ -304,6 +306,7 @@ func WeightVal(No [9]int,bl []int,w int,o []*MJGrain) (int,[]*MJGrain) {
 	return w1+w,o
 }
 func GetWeightVal(No [9]int, bl []int) (int,[]*MJGrain) {
+
 //	var o1 []*MJGrain = nil
 //	_w1,o1 := WeightVal(No,bl,0,nil)
 //	if  _w1 == 0 {
@@ -330,7 +333,7 @@ func GetWeightVal(No [9]int, bl []int) (int,[]*MJGrain) {
 		isS := false
 		for _,o_ := range o1 {
 			if _o.N == o_.N {
-				o_.O[0]--
+		//		o_.O[0]--
 				isS = true
 				break
 			}

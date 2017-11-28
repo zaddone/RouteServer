@@ -30,6 +30,7 @@ type ProxyInfo struct {
 	Order int64
 
 }
+
 func (self *ProxyInfo) Init(hostPort string,au string,scheme int) error {
 	host,port,err := net.SplitHostPort(hostPort)
 	if err != nil {
@@ -61,10 +62,10 @@ func (self *ProxyInfo) DeleteDB() (err error) {
 		return err
 	}
 	defer db.Close()
-	_,err = db.Exec("DELETE FROM ProxyPool WHERE Ip = ?",self.IpInt)
+	_,err = db.Exec("DELETE FROM ProxyPool WHERE Ip = ?",self.IpInt<<8 | self.Port)
 	return err
 }
-func (self *ProxyInfo)Check() (err error) {
+func (self *ProxyInfo) Check() (err error) {
 	var conn net.Conn = nil
 	if self.Scheme >= 0 && self.Scheme <6 {
 		self.Order = time.Now().UnixNano()
@@ -109,10 +110,11 @@ func (self *ProxyInfo)SaveDB() (err error) {
 		return err
 	}
 	defer db.Close()
-	_,err = db.Exec("insert into ProxyPool(Ip, Port,Scheme,Start,Au,Ord,Time) values(?, ?,?,?,?,?,?)",self.IpInt,self.Port,self.Scheme,true,self.Au,self.Order,time.Now().Unix())
+	Ips := self.IpInt<<8 |self.Port
+	_,err = db.Exec("insert into ProxyPool(Ip, Port,Scheme,Start,Au,Ord,Time) values(?, ?,?,?,?,?,?)",Ips,self.Port,self.Scheme,true,self.Au,self.Order,time.Now().Unix())
 	if err != nil {
 		log.Println("update",err)
-		_,err = db.Exec("UPDATE ProxyPool SET Port = ?,Scheme = ?,Start = ?,Au=?, Ord=?,Time = ? WHERE Ip = ? ",self.Port,self.Scheme,true,self.Au,self.Order,time.Now().Unix(),self.IpInt)
+		_,err = db.Exec("UPDATE ProxyPool SET Port = ?,Scheme = ?,Start = ?,Au=?, Ord=?,Time = ? WHERE Ip = ? ",self.Port,self.Scheme,true,self.Au,self.Order,time.Now().Unix(),Ips)
 	}
 	
 	return err
@@ -172,6 +174,7 @@ func GetProxyList(isAll bool) (list []*ProxyInfo,err error) {
 			log.Println(er)
 			break
 		}
+		tmpPr.IpInt = tmpPr.IpInt >>8
 		list = append(list,tmpPr)
 	}
 	rows.Close()
@@ -183,6 +186,7 @@ func LoadFreUsedAddr()string {
 	return "117.175.92.40:80"
 }
 func ConnProxy(addr string,_proxy string) (net.Conn,error){
+
 	if addr == "" {
 		addr = LoadFreUsedAddr()
 	}
