@@ -62,9 +62,9 @@ func SortGrainArrs(grs []*MJGrain,o int,isd... bool ) *MJGrain {
 			break
 		}
 	}
-	grs = grs[:_i]
+//	grs = grs[:_i]
 	o ++
-	return SortGrainArrs(grs,o,isd...)
+	return SortGrainArrs(grs[:_i],o,isd...)
 
 }
 
@@ -482,7 +482,7 @@ func (self *Ai) Outs(isf int,No30 bool) (out int){
 		grs = append(grs,bl.RunFind(self)...)
 	}
 	if len(grs) > 0 {
-		gr = SortGrainArrs(grs,0,false,true,false,false)
+		gr = SortGrainArrs(grs,0,false,false,false,true)
 	//	str := ""
 	//	for _,g := range grs {
 	//		str = fmt.Sprintf("%s %d",str,g.H*9+g.N)

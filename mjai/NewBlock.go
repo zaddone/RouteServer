@@ -19,10 +19,7 @@ type NewBlock struct {
 func (self * NewBlock) RunFind(a *Ai) []*MJGrain {
 
 	for _,g := range self.We {
-	//	var Os []int = nil
-	//	Os = append(Os,g.O[0],a.GetPublicNum(g,false),g.O[1],g.O[2])
-		Os := []int{g.O[0],a.GetPublicNum(g,false),g.O[1],g.O[2]}
-		g.O = Os
+		g.O = append(g.O,a.GetPublicNum(g,false))
 	}
 	return self.We
 //	self.We = append(self.We,_e)
@@ -46,7 +43,7 @@ func (self * NewBlock) Update(){
 	self.Child = nil
 	self.SumLen = 0
 	self.SumWei = 0
-	self.We = nil
+//	self.We = nil
 
 	child := new(ChildBlock)
 	for j,n := range self.No {

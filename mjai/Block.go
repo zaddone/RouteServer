@@ -235,10 +235,10 @@ func WeightVal(No [9]int,bl []int,w int,o []*MJGrain) (int,[]*MJGrain) {
 	if le < 3 {
 		for _,i := range bl {
 			if No[i] < 3 {
-				v:=(3 - No[i])
-				w += v
+				v:= 3-No[i]
+				w +=  v
 				//if No[i] == 1 {
-				if No[i]>0{
+				if v > 0{
 					o = append(o,&MJGrain{H:-1,N:i,O:[]int{No[i]}})
 				}
 			}
@@ -262,10 +262,10 @@ func WeightVal(No [9]int,bl []int,w int,o []*MJGrain) (int,[]*MJGrain) {
 			if !isb {
 				start = i
 			}else{
-				v :=3 - No[bl[i]]
+				v := 3- No[bl[i]]
 				w += v
-				if No[i]>0{
-					o = append(o,&MJGrain{H:-1,N:i,O:[]int{No[i]}})
+				if v >0{
+					o = append(o,&MJGrain{H:-1,N:bl[i],O:[]int{No[bl[i]]}})
 				}
 			}
 		}
